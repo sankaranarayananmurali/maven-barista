@@ -36,7 +36,7 @@ pipeline:
                   identifier: Run_1
                   spec:
                     connectorRef: dockerhub
-                    image: sankaranarayananmurali/maven-v1
+                    image: sankaranarayananmurali/petclinic-sam:3.4.0
                     shell: Sh
                     command: mvn clean test
         delegateSelectors:
