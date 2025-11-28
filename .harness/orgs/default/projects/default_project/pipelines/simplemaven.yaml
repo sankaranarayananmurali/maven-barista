@@ -38,6 +38,6 @@ pipeline:
                     connectorRef: dockerhub
                     image: sankaranarayananmurali/petclinic-sam:3.4.0
                     shell: Sh
-                    command: clean test
+                    command: mvn clean test
         delegateSelectors:
           - docker-delegate
