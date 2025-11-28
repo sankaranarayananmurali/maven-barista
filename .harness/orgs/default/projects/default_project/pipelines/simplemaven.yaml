@@ -39,3 +39,5 @@ pipeline:
                     image: sankaranarayananmurali/petclinic-sam:3.4.0
                     shell: Sh
                     command: mvn clean test
+        delegateSelectors:
+          - docker-delegate
