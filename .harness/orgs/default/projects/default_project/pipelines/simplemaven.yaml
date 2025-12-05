@@ -37,7 +37,7 @@ pipeline:
                   identifier: Run_1
                   spec:
                     connectorRef: dockerhub
-                    image: sankaranarayananmurali/maven-v1
+                    image: sankaranarayananmurali/maven-v1:latest
                     shell: Sh
                     command: mvn clean test
         delegateSelectors:
