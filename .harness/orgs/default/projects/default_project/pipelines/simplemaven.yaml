@@ -34,8 +34,8 @@ pipeline:
             steps:
               - step:
                   type: Run
-                  name: Run_1
-                  identifier: Run_1
+                  name: Maven Build
+                  identifier: Maven_Build
                   spec:
                     connectorRef: dockerhub
                     image: sankaranarayananmurali/maven-v1:latest
