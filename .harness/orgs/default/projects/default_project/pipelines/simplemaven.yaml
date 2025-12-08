@@ -35,18 +35,6 @@ pipeline:
             steps:
               - step:
                   type: Run
-                  name: Copy Source to Workspace
-                  identifier: copy_source
-                  spec:
-                    connectorRef: dockerhub
-                    image: alpine
-                    shell: Sh
-                    command: |-
-                      mkdir -p /workspace/src
-                      cp -r . /workspace/src
-                      echo "Source copied to /workspace/src"
-              - step:
-                  type: Run
                   name: Maven Build
                   identifier: Maven_Build
                   spec:
@@ -63,7 +51,7 @@ pipeline:
                     config: default
                     target:
                       type: repository
-                      workspace: /workspace/src
+                      workspace: .
                       detection: auto
                     advanced:
                       log:
@@ -75,6 +63,7 @@ pipeline:
                           - AllErrors
                         action:
                           type: MarkAsFailure
+                  timeout: 10m
               - step:
                   type: Run
                   name: Find SARIF Files
@@ -106,14 +95,17 @@ pipeline:
                   spec:
                     shell: Sh
                     image: alpine
+                    connectorRef: account.harnessImage
                     command: |
                       echo "Copying SARIF report..."
                       mkdir -p /harness/artifacts
                       # Try multiple possible locations for the SARIF file
                       cp /tmp/output.sarif /harness/artifacts/output.sarif || \
                       cp /workspace/src/.semgrep/results.sarif /harness/artifacts/output.sarif || \
-                      cp .semgrep/results.sarif /harness/artifacts/output.sarif || \
                       cp /workspace/.semgrep/results.sarif /harness/artifacts/output.sarif || \
+                      cp .semgrep/results.sarif /harness/artifacts/output.sarif || \
+                      cp /workspace/src/results.sarif /harness/artifacts/output.sarif || \
+                      cp /workspace/results.sarif /harness/artifacts/output.sarif || \
                       echo "Could not find SARIF report in any expected location"
                   failureStrategies:
                     - onFailure:
@@ -218,4 +210,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-08 14:33:54 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-08 14:39:41 UTC by sankaranarayanan.m.
