@@ -119,7 +119,7 @@ pipeline:
                   name: Email_1
                   identifier: Email_1
                   spec:
-                    to: sankaranarayananece@outlook.com
+                    to: sankaranarayanan.m@xenovex.com
                     cc: ""
                     subject: Build Approved
                     body: |-
