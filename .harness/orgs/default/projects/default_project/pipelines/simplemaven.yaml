@@ -68,6 +68,10 @@ pipeline:
                     advanced:
                       log:
                         level: info
+                      fail_on_severity: high
+                      args:
+                        cli: "--severity=ERROR --use-git-ignore"
+                  timeout: 10m
         delegateSelectors:
           - docker-delegate
     - stage:
