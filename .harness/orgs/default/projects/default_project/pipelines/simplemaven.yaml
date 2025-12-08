@@ -114,4 +114,16 @@ pipeline:
                         - account._account_all_users
                     isAutoRejectEnabled: false
                     approverInputs: []
+              - step:
+                  type: Email
+                  name: Email_1
+                  identifier: Email_1
+                  spec:
+                    to: sankaranarayananece@outlook.com
+                    cc: ""
+                    subject: Build Approved
+                    body: |-
+                      Hi,
+                      Build is approved!
+                  timeout: 10m
         tags: {}
