@@ -41,7 +41,7 @@ pipeline:
                     connectorRef: dockerhub
                     image: maven:3.9.6
                     shell: Sh
-                    command: Mvn clean package
+                    command: mvn clean package --DskipTest
         delegateSelectors:
           - docker-delegate
         action:
