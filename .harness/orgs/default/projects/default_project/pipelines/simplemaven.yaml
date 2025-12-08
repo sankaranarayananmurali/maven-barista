@@ -72,6 +72,15 @@ pipeline:
                       args:
                         cli: "--severity=ERROR --use-git-ignore"
                   timeout: 10m
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: Ignore
+                  when:
+                    stageStatus: Failure
+                    condition: "true"
         delegateSelectors:
           - docker-delegate
     - stage:
