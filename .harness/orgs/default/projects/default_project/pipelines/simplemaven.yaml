@@ -65,22 +65,36 @@ pipeline:
                       type: repository
                       workspace: /workspace/src
                       detection: auto
-                    advanced:
-                      log:
-                        level: info
-                      fail_on_severity: high
-                      args:
-                        cli: "--severity=ERROR --use-git-ignore"
-                  timeout: 10m
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: PipelineRollback
+              - step:
+                  type: Run
+                  name: Archive SARIF
+                  identifier: archive_sarif
                   when:
                     stageStatus: Failure
-                    condition: "true"
+                  spec:
+                    shell: Sh
+                image: alpine
+                command: |
+                  echo "Copying SARIF report..."
+                  cp /tmp/output.sarif /harness/artifacts/output.sarif || true
+                failureStrategies:
+                  - onFailure: null
+          errors:
+            - AllErrors
+          action:
+            type: Notification
+            spec:
+              notificationRules:
+                - notificationChannel: Email
+                  recipients:
+                    - yourmail@example.com
+                  subject: Harness CI - Semgrep FAILED for <+pipeline.name>
+                  body: |
+                    Semgrep security scan FAILED.
+                    Pipeline: <+pipeline.name>
+                    Stage: <+stage.name>
+                    Execution URL: <+pipeline.executionUrl>
+                    SARIF report is attached in the artifacts section.
         delegateSelectors:
           - docker-delegate
     - stage:
