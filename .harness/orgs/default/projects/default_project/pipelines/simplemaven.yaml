@@ -54,6 +54,19 @@ pipeline:
                     image: maven:3.9.6
                     shell: Sh
                     command: mvn clean package
+              - step:
+                  type: Semgrep
+                  name: Semgrep_1
+                  identifier: Semgrep_1
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      type: repository
+                      detection: auto
+                    advanced:
+                      log:
+                        level: info
         delegateSelectors:
           - docker-delegate
     - stage:
