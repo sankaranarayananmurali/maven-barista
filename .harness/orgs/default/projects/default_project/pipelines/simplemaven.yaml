@@ -43,21 +43,16 @@ pipeline:
                     shell: Sh
                     command: mvn clean package
               - step:
-                  type: Run
+                  type: Semgrep
                   name: Semgrep Security Scan
                   identifier: semgrep_scan
                   spec:
                     connectorRef: dockerhub
-                    image: semgrep/semgrep:latest
-                    shell: Bash
-                    command: |
-                      echo "Running Semgrep security scan..."
-                      cd <+pipeline.properties.ci.codebase.cloneDirectory>
-                      semgrep scan --json --output=semgrep-results.json .
-                      semgrep scan --sarif --output=semgrep-results.sarif .
-                      echo "Semgrep scan completed. SARIF and JSON reports generated."
-                      export SCAN_RESULTS_JSON="$(pwd)/semgrep-results.json"
-                      export SCAN_RESULTS_SARIF="$(pwd)/semgrep-results.sarif"
+                    config: default
+                    mode: orchestration
+                    target:
+                      type: repository
+                      workspace: <+pipeline.properties.ci.codebase.cloneDirectory>
                     outputVariables:
                       - name: SCAN_RESULTS_JSON
                       - name: SCAN_RESULTS_SARIF
@@ -164,4 +159,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-08 15:53:04 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-08 15:56:53 UTC by sankaranarayanan.m.
