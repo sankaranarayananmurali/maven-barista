@@ -77,6 +77,28 @@ pipeline:
                           type: MarkAsFailure
               - step:
                   type: Run
+                  name: Find SARIF Files
+                  identifier: find_sarif_files
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Sh
+                    command: |
+                      echo "Searching for SARIF files..."
+                      find / -name "*.sarif" -type f 2>/dev/null || echo "No SARIF files found"
+
+                      # Check common locations for Semgrep output
+                      echo "\nChecking common Semgrep output locations:"
+                      ls -la /tmp/ | grep sarif || echo "No SARIF files in /tmp"
+
+                      # Show the content of the output.sarif file if it exists
+                      if [ -f "/tmp/output.sarif" ]; then
+                        echo "\nFound /tmp/output.sarif"
+                        ls -la /tmp/output.sarif
+                      fi
+                    timeout: 10m
+              - step:
+                  type: Run
                   name: Archive SARIF Report
                   identifier: archive_sarif
                   when:
@@ -87,13 +109,19 @@ pipeline:
                     command: |
                       echo "Copying SARIF report..."
                       mkdir -p /harness/artifacts
-                      cp /tmp/output.sarif /harness/artifacts/output.sarif || true
+                      # Try multiple possible locations for the SARIF file
+                      cp /tmp/output.sarif /harness/artifacts/output.sarif || \
+                      cp /workspace/src/.semgrep/results.sarif /harness/artifacts/output.sarif || \
+                      cp .semgrep/results.sarif /harness/artifacts/output.sarif || \
+                      cp /workspace/.semgrep/results.sarif /harness/artifacts/output.sarif || \
+                      echo "Could not find SARIF report in any expected location"
                   failureStrategies:
                     - onFailure:
                         errors:
                           - AllErrors
                         action:
                           type: MarkAsFailure
+                  timeout: 10m
             rollbackSteps: []
         delegateSelectors:
           - docker-delegate
@@ -190,4 +218,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-08 14:27:58 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-08 14:33:54 UTC by sankaranarayanan.m.
