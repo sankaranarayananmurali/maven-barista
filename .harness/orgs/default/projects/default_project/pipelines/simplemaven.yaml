@@ -44,12 +44,12 @@ pipeline:
         delegateSelectors:
           - docker-delegate
     - stage:
-        name: docker_build
-        identifier: docker_build
+        name: Build_image
+        identifier: Build_image
         description: ""
         type: CI
         spec:
-          cloneCodebase: false
+          cloneCodebase: true
           caching:
             enabled: true
             override: true
@@ -60,8 +60,7 @@ pipeline:
             arch: Amd64
           runtime:
             type: Docker
-            spec:
-              harnessImageConnectorRef: dockerhub
+            spec: {}
           execution:
             steps:
               - step:
@@ -73,7 +72,3 @@ pipeline:
                     repo: sankaranarayananmurali/maven-v1
                     tags:
                       - <+pipeline.sequenceId>
-                    dockerfile: Dockerfile
-                buildContext: .
-        delegateSelectors:
-          - docker-delegate
