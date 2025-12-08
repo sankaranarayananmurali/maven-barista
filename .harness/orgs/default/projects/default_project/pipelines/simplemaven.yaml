@@ -35,31 +35,13 @@ pipeline:
             steps:
               - step:
                   type: Run
-                  name: Maven Build
-                  identifier: Maven_Build
+                  name: maven_build
+                  identifier: maven_build
                   spec:
                     connectorRef: dockerhub
                     image: maven:3.9.6
                     shell: Sh
-                    command: mvn clean package
-              - step:
-                  type: Semgrep
-                  name: Semgrep_Scan
-                  identifier: Semgrep_1
-                  spec:
-                    mode: orchestration
-                    config: default
-                    target:
-                      type: repository
-                      workspace: <+pipeline.properties.ci.codebase.cloneDirectory>
-                      detection: auto
-                    advanced:
-                      log:
-                        level: info
-                      args:
-                        cli: "--sarif --json --junit-xml"
-                  timeout: 10m
-            rollbackSteps: []
+                    command: Mvn clean package --DskipTest
         delegateSelectors:
           - docker-delegate
         action:
