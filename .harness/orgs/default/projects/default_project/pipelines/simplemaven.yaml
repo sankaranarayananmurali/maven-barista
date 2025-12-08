@@ -72,5 +72,7 @@ pipeline:
                     repo: sankaranarayananmurali/maven-v1
                     tags:
                       - <+pipeline.sequenceId>
+                    dockerfile: Dockerfile
+                    context: .
         delegateSelectors:
           - docker-delegate
