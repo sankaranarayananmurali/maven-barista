@@ -63,7 +63,7 @@ pipeline:
                     config: default
                     target:
                       type: repository
-                      workspace: /workspace
+                      workspace: /workspace/src
                       detection: auto
                     advanced:
                       log:
