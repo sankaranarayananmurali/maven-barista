@@ -41,7 +41,9 @@ pipeline:
                     connectorRef: dockerhub
                     image: maven:3.9.6
                     shell: Sh
-                    command: mvn clean package
+                    command: |
+                      mvn clean package
+                  timeout: 10m
               - step:
                   type: Semgrep
                   name: Semgrep Security Scan
@@ -52,7 +54,7 @@ pipeline:
                     mode: orchestration
                     target:
                       type: repository
-                      workspace: /harness
+                      workspace: /workspace/src
                     outputVariables:
                       - name: SCAN_RESULTS_JSON
                       - name: SCAN_RESULTS_SARIF
@@ -67,6 +69,23 @@ pipeline:
                           - AllErrors
                         action:
                           type: MarkAsFailure
+              - step:
+                  type: Run
+                  name: Archive SARIF Reports
+                  identifier: archive_sarif
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Bash
+                    command: |
+                      echo "Archiving SARIF reports after Semgrep scan failure..."
+                      mkdir -p /harness/artifacts
+                      cp /tmp/output.sarif /harness/artifacts/semgrep-results.sarif || echo "SARIF file not found"
+                      echo "SARIF reports archived successfully"
+                  timeout: 10m
+                  when:
+                    stageStatus: Failure
+                    condition: <+execution.steps.semgrep_scan.status> == "FAILED"
             rollbackSteps: []
         delegateSelectors:
           - docker-delegate
@@ -118,15 +137,21 @@ pipeline:
                       - <+pipeline.sequenceId>
                     dockerfile: Dockerfile
                     context: .
+                    caching: true
+                    resources:
+                      limits:
+                        memory: 2Gi
+                        cpu: 1
+                      requests:
+                        memory: 1Gi
+                        cpu: 0.5
+                  timeout: 10m
             rollbackSteps: []
     - stage:
         name: Build Approval
         identifier: Build_Approval
         description: Approval stage for Docker image
         type: Approval
-        runtime:
-          type: Docker
-          spec: {}
         spec:
           platform:
             os: Linux
@@ -163,4 +188,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-08 16:12:12 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-08 16:16:59 UTC by sankaranarayanan.m.
