@@ -9,10 +9,7 @@ pipeline:
     ci:
       codebase:
         connectorRef: mavengithubconnector
-        build:
-          type: branch
-          spec:
-            branch: main
+        build: <+input>
         sparseCheckout: []
   stages:
     - stage:
@@ -41,9 +38,10 @@ pipeline:
                   name: Copy Source to Workspace
                   identifier: copy_source
                   spec:
-                    shell: Sh
+                    connectorRef: dockerhub
                     image: alpine
-                    command: |
+                    shell: Sh
+                    command: |-
                       mkdir -p /workspace/src
                       cp -r . /workspace/src
                       echo "Source copied to /workspace/src"
