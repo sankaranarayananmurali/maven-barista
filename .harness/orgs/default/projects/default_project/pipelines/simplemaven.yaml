@@ -65,6 +65,15 @@ pipeline:
                       type: repository
                       workspace: /workspace/src
                       detection: auto
+                    advanced:
+                      log:
+                        level: info
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: MarkAsFailure
               - step:
                   type: Run
                   name: Archive SARIF
