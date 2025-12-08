@@ -9,7 +9,10 @@ pipeline:
     ci:
       codebase:
         connectorRef: mavengithubconnector
-        build: <+input>
+        build:
+          type: branch
+          spec:
+            branch: main
         sparseCheckout: []
   stages:
     - stage:
@@ -189,4 +192,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-08 14:25:24 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-08 14:27:58 UTC by sankaranarayanan.m.
