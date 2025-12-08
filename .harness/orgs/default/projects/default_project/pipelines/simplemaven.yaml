@@ -50,6 +50,8 @@ pipeline:
                   name: Test_1
                   identifier: Test_1
                   spec:
+                    connectorRef: dockerhub
+                    image: maven:3.9.6
                     shell: Sh
                     command: mvn test
                     intelligenceMode: true
