@@ -46,6 +46,14 @@ pipeline:
                       cp -r . /workspace/src
                       echo "Source copied to /workspace/src"
               - step:
+                  type: Test
+                  name: Test_1
+                  identifier: Test_1
+                  spec:
+                    shell: Sh
+                    command: mvn test
+                    intelligenceMode: true
+              - step:
                   type: Run
                   name: Maven Build
                   identifier: Maven_Build
