@@ -18,6 +18,8 @@ pipeline:
         type: CI
         spec:
           cloneCodebase: true
+          sharedPaths:
+            - /harness
           caching:
             enabled: true
             override: true
@@ -32,6 +34,17 @@ pipeline:
               harnessImageConnectorRef: dockerhub
           execution:
             steps:
+              - step:
+                  type: Run
+                  name: Copy Source to Shared Workspace
+                  identifier: copy_source
+                  spec:
+                    shell: Bash
+                    image: alpine
+                    command: |
+                      mkdir -p /harness/src
+                      cp -r . /harness/src
+                      echo "Source copied to /harness/src"
               - step:
                   type: Run
                   name: Maven Build
