@@ -75,6 +75,10 @@ pipeline:
           platform:
             os: Linux
             arch: Amd64
+          runtime:
+            type: Docker
+            spec:
+              harnessImageConnectorRef: dockerhub
           execution:
             steps:
               - step:
@@ -89,10 +93,6 @@ pipeline:
                     dockerfile: Dockerfile
                     context: .
             rollbackSteps: []
-          runtime:
-            type: Docker
-            spec:
-              harnessImageConnectorRef: dockerhub
     - stage:
         name: Build Approval
         identifier: Build_Approval
