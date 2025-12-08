@@ -39,7 +39,7 @@ pipeline:
                   name: Copy Source to Shared Workspace
                   identifier: copy_source
                   spec:
-                    shell: Bash
+                    shell: Sh
                     image: alpine
                     command: |
                       mkdir -p /workspace/src
