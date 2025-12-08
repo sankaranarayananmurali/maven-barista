@@ -52,7 +52,7 @@ pipeline:
                     mode: orchestration
                     target:
                       type: repository
-                      workspace: <+pipeline.properties.ci.codebase.cloneDirectory>
+                      workspace: /harness
                     outputVariables:
                       - name: SCAN_RESULTS_JSON
                       - name: SCAN_RESULTS_SARIF
@@ -159,4 +159,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-08 15:56:53 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-08 16:03:24 UTC by sankaranarayanan.m.
