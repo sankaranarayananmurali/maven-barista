@@ -19,7 +19,7 @@ pipeline:
         spec:
           cloneCodebase: true
           sharedPaths:
-            - /harness
+            - /workspace
           caching:
             enabled: true
             override: true
@@ -42,9 +42,9 @@ pipeline:
                     shell: Bash
                     image: alpine
                     command: |
-                      mkdir -p /harness/src
-                      cp -r . /harness/src
-                      echo "Source copied to /harness/src"
+                      mkdir -p /workspace/src
+                      cp -r . /workspace/src
+                      echo "Source copied to /workspace/src"
               - step:
                   type: Run
                   name: Maven Build
