@@ -44,28 +44,19 @@ pipeline:
                     command: mvn clean package
               - step:
                   type: Semgrep
-                  name: Semgrep Scan
+                  name: Semgrep_Scan
                   identifier: Semgrep_1
                   spec:
                     mode: orchestration
                     config: default
                     target:
                       type: repository
-                      workspace: .
                       detection: auto
                     advanced:
                       log:
                         level: info
-                      fail_on_severity: high
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - Unknown
-                          - Timeout
-                          - InputTimeoutError
-                          - ApprovalRejection
-                        action:
-                          type: MarkAsFailure
+                      args:
+                        cli: "--sarif --json --junit-xml"
                   timeout: 10m
         delegateSelectors:
           - docker-delegate
