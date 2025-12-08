@@ -57,6 +57,9 @@ pipeline:
                       log:
                         level: info
                       fail_on_severity: high
+                    output:
+                      format: sarif
+                      file: /tmp/output.sarif
                   failureStrategies:
                     - onFailure:
                         errors:
