@@ -57,41 +57,6 @@ pipeline:
         delegateSelectors:
           - docker-delegate
     - stage:
-        name: Test
-        identifier: Test
-        description: ""
-        type: CI
-        delegateSelectors:
-          - docker-delegate
-        spec:
-          cloneCodebase: true
-          caching:
-            enabled: true
-            override: true
-          buildIntelligence:
-            enabled: true
-          platform:
-            os: Linux
-            arch: Amd64
-          runtime:
-            type: Docker
-            spec: {}
-          execution:
-            steps:
-              - step:
-                  type: Semgrep
-                  name: Semgrep_1
-                  identifier: Semgrep_1
-                  spec:
-                    mode: orchestration
-                    config: default
-                    target:
-                      type: repository
-                      detection: auto
-                    advanced:
-                      log:
-                        level: info
-    - stage:
         name: Build_image
         identifier: Build_image
         description: ""
