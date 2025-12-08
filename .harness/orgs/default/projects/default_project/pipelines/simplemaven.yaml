@@ -3,7 +3,8 @@ pipeline:
   identifier: simplemaven
   projectIdentifier: default_project
   orgIdentifier: default
-  tags: {}
+  tags:
+    ai_generated: "true"
   properties:
     ci:
       codebase:
@@ -14,12 +15,10 @@ pipeline:
     - stage:
         name: mvn-build
         identifier: mvnbuild
-        description: ""
+        description: Maven build and Semgrep scan
         type: CI
         spec:
           cloneCodebase: true
-          sharedPaths:
-            - /workspace
           caching:
             enabled: true
             override: true
@@ -36,7 +35,7 @@ pipeline:
             steps:
               - step:
                   type: Run
-                  name: Copy Source to Shared Workspace
+                  name: Copy Source to Workspace
                   identifier: copy_source
                   spec:
                     shell: Sh
@@ -56,7 +55,7 @@ pipeline:
                     command: mvn clean package
               - step:
                   type: Semgrep
-                  name: Semgrep_1
+                  name: Semgrep Scan
                   identifier: Semgrep_1
                   spec:
                     mode: orchestration
@@ -77,41 +76,47 @@ pipeline:
                           type: MarkAsFailure
               - step:
                   type: Run
-                  name: Archive SARIF
+                  name: Archive SARIF Report
                   identifier: archive_sarif
                   when:
                     stageStatus: Failure
                   spec:
                     shell: Sh
-                image: alpine
-                command: |
-                  echo "Copying SARIF report..."
-                  cp /tmp/output.sarif /harness/artifacts/output.sarif || true
-                failureStrategies:
-                  - {}
-          errors:
-            - AllErrors
-          action:
-            type: Notification
-            spec:
-              notificationRules:
-                - notificationChannel: Email
-                  recipients:
-                    - yourmail@example.com
-                  subject: Harness CI - Semgrep FAILED for <+pipeline.name>
-                  body: |
-                    Semgrep security scan FAILED.
-                    Pipeline: <+pipeline.name>
-                    Stage: <+stage.name>
-                    Execution URL: <+pipeline.executionUrl>
-                    SARIF report is attached in the artifacts section.
+                    image: alpine
+                    command: |
+                      echo "Copying SARIF report..."
+                      mkdir -p /harness/artifacts
+                      cp /tmp/output.sarif /harness/artifacts/output.sarif || true
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: MarkAsFailure
+            rollbackSteps: []
         delegateSelectors:
           - docker-delegate
+        action:
+          type: Notification
+          spec:
+            notificationRules:
+              - notificationChannel: Email
+                recipients:
+                  - sankaranarayanan.m@xenovex.com
+                subject: Harness CI - Semgrep FAILED for <+pipeline.name>
+                body: |-
+                  Semgrep security scan FAILED.
+                  Pipeline: <+pipeline.name>
+                  Stage: <+stage.name>
+                  Execution URL: <+pipeline.executionUrl>
+                  SARIF report is attached in the artifacts section.
     - stage:
         name: Build_image
         identifier: Build_image
-        description: ""
+        description: Docker image build and push
         type: CI
+        delegateSelectors:
+          - docker-delegate
         spec:
           cloneCodebase: true
           caching:
@@ -122,36 +127,42 @@ pipeline:
           platform:
             os: Linux
             arch: Amd64
-          runtime:
-            type: Docker
-            spec: {}
           execution:
             steps:
               - step:
                   type: BuildAndPushDockerRegistry
-                  name: BuildAndPushDockerRegistry_1
+                  name: BuildAndPushDockerRegistry
                   identifier: BuildAndPushDockerRegistry_1
                   spec:
                     connectorRef: dockerhub
-                    repo: sankaranarayananmurali/maven-v1
+                    repo: sankaranarayananm/maven-v1
                     tags:
                       - <+pipeline.sequenceId>
                     dockerfile: Dockerfile
                     context: .
-        delegateSelectors:
-          - docker-delegate
+            rollbackSteps: []
+          runtime:
+            type: Docker
+            spec:
+              harnessImageConnectorRef: dockerhub
     - stage:
         name: Build Approval
         identifier: Build_Approval
-        description: ""
+        description: Approval stage for Docker image
         type: Approval
+        runtime:
+          type: Docker
+          spec: {}
         spec:
+          platform:
+            os: Linux
+            arch: Amd64
           execution:
             steps:
               - step:
-                  name: Docker image Approval
-                  identifier: Docker_image_Approval
                   type: HarnessApproval
+                  name: Docker Image Approval
+                  identifier: Docker_image_Approval
                   timeout: 1d
                   spec:
                     approvalMessage: |-
@@ -164,10 +175,9 @@ pipeline:
                       userGroups:
                         - account._account_all_users
                     isAutoRejectEnabled: false
-                    approverInputs: []
               - step:
                   type: Email
-                  name: Email_1
+                  name: Email_Notification
                   identifier: Email_1
                   spec:
                     to: sankaranarayanan.m@xenovex.com
@@ -177,4 +187,6 @@ pipeline:
                       Hi,
                       Build is approved!
                   timeout: 10m
+            rollbackSteps: []
         tags: {}
+  description: This pipeline was updated by Harness AI on 2025-12-08 14:25:24 UTC by sankaranarayanan.m.
