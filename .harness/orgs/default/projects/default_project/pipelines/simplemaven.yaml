@@ -57,67 +57,16 @@ pipeline:
                       log:
                         level: info
                       fail_on_severity: high
-                    output:
-                      format: sarif
-                      file: /tmp/output.sarif
                   failureStrategies:
                     - onFailure:
                         errors:
-                          - AllErrors
+                          - Unknown
+                          - Timeout
+                          - InputTimeoutError
+                          - ApprovalRejection
                         action:
                           type: MarkAsFailure
                   timeout: 10m
-              - step:
-                  type: Run
-                  name: Find SARIF Files
-                  identifier: find_sarif_files
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Sh
-                    command: |
-                      echo "Searching for SARIF files..."
-                      find / -name "*.sarif" -type f 2>/dev/null || echo "No SARIF files found"
-
-                      # Check common locations for Semgrep output
-                      echo "\nChecking common Semgrep output locations:"
-                      ls -la /tmp/ | grep sarif || echo "No SARIF files in /tmp"
-
-                      # Show the content of the output.sarif file if it exists
-                      if [ -f "/tmp/output.sarif" ]; then
-                        echo "\nFound /tmp/output.sarif"
-                        ls -la /tmp/output.sarif
-                      fi
-                    timeout: 10m
-              - step:
-                  type: Run
-                  name: Archive SARIF Report
-                  identifier: archive_sarif
-                  when:
-                    stageStatus: Failure
-                  spec:
-                    shell: Sh
-                    image: alpine
-                    connectorRef: account.harnessImage
-                    command: |
-                      echo "Copying SARIF report..."
-                      mkdir -p /harness/artifacts
-                      # Try multiple possible locations for the SARIF file
-                      cp /tmp/output.sarif /harness/artifacts/output.sarif || \
-                      cp /workspace/src/.semgrep/results.sarif /harness/artifacts/output.sarif || \
-                      cp /workspace/.semgrep/results.sarif /harness/artifacts/output.sarif || \
-                      cp .semgrep/results.sarif /harness/artifacts/output.sarif || \
-                      cp /workspace/src/results.sarif /harness/artifacts/output.sarif || \
-                      cp /workspace/results.sarif /harness/artifacts/output.sarif || \
-                      echo "Could not find SARIF report in any expected location"
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: MarkAsFailure
-                  timeout: 10m
-            rollbackSteps: []
         delegateSelectors:
           - docker-delegate
         action:
