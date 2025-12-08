@@ -87,7 +87,7 @@ pipeline:
                   identifier: BuildAndPushDockerRegistry_1
                   spec:
                     connectorRef: dockerhub
-                    repo: sankaranarayananm/maven-v1
+                    repo: sankaranarayananmurali/maven-v1
                     tags:
                       - <+pipeline.sequenceId>
                     dockerfile: Dockerfile
