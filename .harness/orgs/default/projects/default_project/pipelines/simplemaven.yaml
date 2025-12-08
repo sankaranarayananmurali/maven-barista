@@ -48,6 +48,8 @@ pipeline:
         identifier: Test
         description: ""
         type: CI
+        delegateSelectors:
+          - docker-delegate
         spec:
           cloneCodebase: true
           caching:
@@ -76,9 +78,6 @@ pipeline:
                     advanced:
                       log:
                         level: info
-        runMode:
-          type: Manual
-          timeout: 10m
     - stage:
         name: Build_image
         identifier: Build_image
