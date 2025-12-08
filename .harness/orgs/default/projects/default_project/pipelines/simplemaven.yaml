@@ -77,7 +77,7 @@ pipeline:
                         errors:
                           - AllErrors
                         action:
-                          type: Ignore
+                          type: PipelineRollback
                   when:
                     stageStatus: Failure
                     condition: "true"
