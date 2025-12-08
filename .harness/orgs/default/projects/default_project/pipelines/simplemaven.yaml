@@ -78,7 +78,7 @@ pipeline:
                   echo "Copying SARIF report..."
                   cp /tmp/output.sarif /harness/artifacts/output.sarif || true
                 failureStrategies:
-                  - onFailure: null
+                  - {}
           errors:
             - AllErrors
           action:
