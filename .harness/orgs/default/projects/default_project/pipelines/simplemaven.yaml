@@ -90,6 +90,23 @@ pipeline:
                       # Run maven deploy with the dynamic version
                       mvn clean deploy
 
+                      # Check if expected artifacts were generated
+                      if [ ! -d "target" ] || [ -z "$(ls -A target/*.jar target/*.war 2>/dev/null)" ]; then
+                        echo "ERROR: No artifacts found in target directory after build!"
+                        echo "Available files in current directory:"
+                        ls -la
+                        echo "\nAvailable files in target directory (if it exists):"
+                        if [ -d "target" ]; then
+                          ls -la target
+                        else
+                          echo "target directory does not exist"
+                        fi
+                        exit 1
+                      else
+                        echo "Build artifacts successfully generated:"
+                        ls -la target/*.jar target/*.war 2>/dev/null
+                      fi
+
                       # Export the dynamic version as an output variable
                       export MAVEN_VERSION=${DYNAMIC_VERSION}
                     envVariables:
@@ -111,12 +128,12 @@ pipeline:
                       password: <+secrets.getValue("nexus_password")>
                       format: maven2
                       repository: maven-releases
-                      filename: ./target/*.war
+                      filename: ./target/*.jar
                       attributes: |-
                         -CgroupId=<+pipeline.variables.maven_group_id> 
                         -CartifactId=<+pipeline.variables.maven_artifact_id> 
                         -Cversion=<+execution.steps.maven_build.output.outputVariables.MAVEN_VERSION> 
-                        -Aextension=war
+                        -Aextension=jar
                   timeout: 10m
             rollbackSteps: []
         delegateSelectors:
@@ -470,4 +487,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 18:25:10 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 18:34:46 UTC by sankaranarayanan.m.
