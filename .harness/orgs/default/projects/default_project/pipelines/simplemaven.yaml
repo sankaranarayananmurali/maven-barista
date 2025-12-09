@@ -61,7 +61,7 @@ pipeline:
                       # Create .m2 directory if it doesn't exist
                       mkdir -p ~/.m2
 
-                      # Generate settings.xml file with nexus-releases server configuration
+                      # Generate settings.xml file with nexus-releases and nexus-snapshots server configurations
                       cat > ~/.m2/settings.xml << EOF
                       <?xml version="1.0" encoding="UTF-8"?>
                       <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
@@ -71,8 +71,13 @@ pipeline:
                         <servers>
                           <server>
                             <id>nexus-releases</id>
-                            <username>admin</username>
-                            <password>admin123</password>
+                            <username>${NEXUS_USERNAME}</username>
+                            <password>${NEXUS_PASSWORD}</password>
+                          </server>
+                          <server>
+                            <id>nexus-snapshots</id>
+                            <username>${NEXUS_USERNAME}</username>
+                            <password>${NEXUS_PASSWORD}</password>
                           </server>
                         </servers>
                       </settings>
@@ -469,4 +474,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 18:34:46 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 19:05:55 UTC by sankaranarayanan.m.
