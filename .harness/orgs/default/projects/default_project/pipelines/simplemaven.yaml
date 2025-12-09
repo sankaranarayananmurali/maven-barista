@@ -92,7 +92,7 @@ pipeline:
                       # Update version in pom.xml
                       mvn versions:set -DnewVersion=${DYNAMIC_VERSION} -DgenerateBackupPoms=false
 
-                      # Run maven deploy with the dynamic version
+                      # Run maven clean deploy which will automatically upload to Nexus
                       mvn clean deploy
 
                       # Export the dynamic version as an output variable
@@ -108,69 +108,6 @@ pipeline:
                     outputVariables:
                       - name: MAVEN_VERSION
                       - name: ARTIFACT_PATH
-                  timeout: 10m
-              - step:
-                  type: Run
-                  name: Find Maven Artifact Type
-                  identifier: find_artifact
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Sh
-                    command: |-
-                      # Install necessary tools
-                      apk add --no-cache curl grep
-
-                      # Get the Maven artifact details
-                      GROUP_ID=${MAVEN_GROUP_ID}
-                      ARTIFACT_ID=${MAVEN_ARTIFACT_ID}
-                      VERSION=${MAVEN_VERSION}
-
-                      echo "Checking Maven artifact: ${GROUP_ID}:${ARTIFACT_ID}:${VERSION}"
-
-                      # Determine if it's a SNAPSHOT version
-                      if [[ "$VERSION" == *"-SNAPSHOT"* ]]; then
-                        echo "This is a SNAPSHOT version"
-                        export ARTIFACT_TYPE="snapshot"
-                      else
-                        echo "This is a RELEASE version"
-                        export ARTIFACT_TYPE="release"
-                      fi
-
-                      # Output the artifact details
-                      echo "Artifact details:"
-                      echo "Group ID: ${GROUP_ID}"
-                      echo "Artifact ID: ${ARTIFACT_ID}"
-                      echo "Version: ${VERSION}"
-                      echo "Type: ${ARTIFACT_TYPE}"
-                    envVariables:
-                      MAVEN_GROUP_ID: <+pipeline.variables.maven_group_id>
-                      MAVEN_ARTIFACT_ID: <+pipeline.variables.maven_artifact_id>
-                      MAVEN_VERSION: <+execution.steps.maven_build.output.outputVariables.MAVEN_VERSION>
-                    outputVariables:
-                      - name: ARTIFACT_TYPE
-                        type: String
-                        value: ARTIFACT_TYPE
-                  timeout: 10m
-              - step:
-                  type: Plugin
-                  name: Upload to Nexus
-                  identifier: upload_to_nexus
-                  spec:
-                    connectorRef: dockerhub
-                    image: harnesscommunity/publish-nexus-repository:1.1.1
-                    settings:
-                      server_url: <+pipeline.variables.nexus_url>
-                      username: <+pipeline.variables.nexus_username>
-                      password: <+secrets.getValue("nexus_password")>
-                      format: maven2
-                      repository: "<+execution.steps.maven_build.output.outputVariables.MAVEN_VERSION.contains(\"SNAPSHOT\") ? \"maven-snapshots\" : \"maven-releases\">"
-                      filename: ./target/<+pipeline.variables.maven_artifact_id>-<+execution.steps.maven_build.output.outputVariables.MAVEN_VERSION>.war
-                      attributes: |-
-                        -CgroupId=<+pipeline.variables.maven_group_id> 
-                        -CartifactId=<+pipeline.variables.maven_artifact_id> 
-                        -Cversion=<+execution.steps.maven_build.output.outputVariables.MAVEN_VERSION> 
-                        -Aextension=war
                   timeout: 10m
             rollbackSteps: []
         delegateSelectors:
@@ -524,4 +461,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 19:32:08 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 19:39:23 UTC by sankaranarayanan.m.
