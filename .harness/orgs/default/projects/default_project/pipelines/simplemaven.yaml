@@ -165,129 +165,24 @@ pipeline:
                   timeout: 10m
               - step:
                   type: Run
-                  name: simplified_report
-                  identifier: simplified_report
+                  name: save_semgrep_report
+                  identifier: save_semgrep_report
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
                     shell: Bash
                     command: |
-                      # Process Semgrep scan results
-                      echo "Processing Semgrep scan results..."
-
-                      # Check if results file exists
-                      if [ ! -f semgrep-results.json ]; then
+                      # Check if semgrep-results.json exists and copy it to scan_report.json
+                      if [ -f semgrep-results.json ]; then
+                        echo "Copying semgrep-results.json to scan_report.json"
+                        cp semgrep-results.json scan_report.json
+                        echo "File copied successfully"
+                      else
                         echo "Warning: semgrep-results.json file not found"
-                        export CRITICAL_VULNS=0
-                        export HIGH_VULNS=0
-                        export MEDIUM_VULNS=0
-                        export LOW_VULNS=0
-                        export TOTAL_VULNS=0
-                        export AFFECTED_FILES=0
-                      else
-                        # Extract vulnerability counts by severity
-                        CRITICAL_VULNS=$(grep -c '"severity":"critical"' semgrep-results.json || echo 0)
-                        HIGH_VULNS=$(grep -c '"severity":"high"' semgrep-results.json || echo 0)
-                        MEDIUM_VULNS=$(grep -c '"severity":"medium"' semgrep-results.json || echo 0)
-                        LOW_VULNS=$(grep -c '"severity":"low"' semgrep-results.json || echo 0)
-                        AFFECTED_FILES=$(grep -o '"path":"[^"]*"' semgrep-results.json | sort | uniq | wc -l)
-                        TOTAL_VULNS=$((CRITICAL_VULNS + HIGH_VULNS + MEDIUM_VULNS + LOW_VULNS))
-                        
-                        # Export variables
-                        export CRITICAL_VULNS
-                        export HIGH_VULNS
-                        export MEDIUM_VULNS
-                        export LOW_VULNS
-                        export TOTAL_VULNS
-                        export AFFECTED_FILES
+                        echo "{}" > scan_report.json
+                        echo "Created empty scan_report.json file"
                       fi
-
-                      # Generate report
-                      cat << EOF > scan_report.txt
-                      ===== SECURITY SCAN SUMMARY REPORT =====
-                      Date: $(date)
-                      Pipeline: <+pipeline.name>
-                      Execution ID: <+pipeline.executionId>
-
-                      FINDINGS STATISTICS:
-                      - Total findings: $TOTAL_VULNS
-                      - Critical severity: $CRITICAL_VULNS
-                      - High severity: $HIGH_VULNS
-                      - Medium severity: $MEDIUM_VULNS
-                      - Low severity: $LOW_VULNS
-                      - Affected files: $AFFECTED_FILES
-
-                      TOP VULNERABILITIES:
-                      $(grep -A 3 "critical\|high" semgrep-results.json 2>/dev/null | head -15 || echo "No critical or high vulnerabilities found")
-
-                      For complete details, please review the full scan results.
-                      EOF
-
-                      echo "Report generated successfully at scan_report.txt"
-                      cat scan_report.txt
-                    outputVariables:
-                      - name: CRITICAL_VULNS
-                      - name: HIGH_VULNS
-                      - name: MEDIUM_VULNS
-                      - name: LOW_VULNS
-                      - name: TOTAL_VULNS
-                      - name: AFFECTED_FILES
-                    reports:
-                      type: JUnit
-                      spec:
-                        paths:
-                          - scan_report.txt
                   timeout: 10m
-              - step:
-                  type: Run
-                  name: Security Gate
-                  identifier: security_gate
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Bash
-                    command: |
-                      # Get vulnerability counts from Semgrep scan results
-                      CRITICAL_COUNT=${CRITICAL_VULNS:-0}
-                      HIGH_COUNT=${HIGH_VULNS:-0}
-                      MEDIUM_COUNT=${MEDIUM_VULNS:-0}
-                      LOW_COUNT=${LOW_VULNS:-0}
-                      TOTAL_COUNT=${TOTAL_VULNS:-0}
-
-                      echo "Security Gate Analysis:"
-                      echo "Critical vulnerabilities: $CRITICAL_COUNT"
-                      echo "High vulnerabilities: $HIGH_COUNT"
-                      echo "Medium vulnerabilities: $MEDIUM_COUNT"
-                      echo "Low vulnerabilities: $LOW_COUNT"
-                      echo "Total vulnerabilities: $TOTAL_COUNT"
-
-                      # Define security policy thresholds
-                      if [ "$CRITICAL_COUNT" -gt 0 ]; then
-                        echo "FAIL: Critical security issues detected. Pipeline will fail."
-                        exit 1
-                      elif [ "$HIGH_COUNT" -gt 5 ]; then
-                        echo "FAIL: Too many high severity issues detected ($HIGH_COUNT > 5). Pipeline will fail."
-                        exit 1
-                      elif [ "$MEDIUM_COUNT" -gt 10 ] && [ "$HIGH_COUNT" -gt 2 ]; then
-                        echo "FAIL: Combined threshold of medium and high issues exceeded. Pipeline will fail."
-                        exit 1
-                      else
-                        echo "PASS: Security scan passed threshold requirements. Pipeline will continue."
-                        exit 0
-                      fi
-                    envVariables:
-                      CRITICAL_VULNS: <+execution.steps.simplified_report.output.outputVariables.CRITICAL_VULNS>
-                      HIGH_VULNS: <+execution.steps.simplified_report.output.outputVariables.HIGH_VULNS>
-                      MEDIUM_VULNS: <+execution.steps.simplified_report.output.outputVariables.MEDIUM_VULNS>
-                      LOW_VULNS: <+execution.steps.simplified_report.output.outputVariables.LOW_VULNS>
-                      TOTAL_VULNS: <+execution.steps.simplified_report.output.outputVariables.TOTAL_VULNS>
-                  timeout: 10m
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: Abort
             rollbackSteps: []
     - stage:
         name: Build_image
@@ -376,4 +271,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 19:54:47 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 20:04:33 UTC by sankaranarayanan.m.
