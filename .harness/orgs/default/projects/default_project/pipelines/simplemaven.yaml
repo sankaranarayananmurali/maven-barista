@@ -56,7 +56,7 @@ pipeline:
                           <server>
                             <id>nexus-releases</id>
                             <username>admin</username>
-                            <password>@16feb1998</password>
+                            <password>admin123</password>
                           </server>
                         </servers>
                       </settings>
