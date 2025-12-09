@@ -100,22 +100,40 @@ pipeline:
                       # Parse Semgrep scan results
                       echo "Parsing Semgrep scan results..."
 
-                      # Extract vulnerability counts by severity
-                      CRITICAL_COUNT=$(grep -c '"severity":"critical"' semgrep-results.json || echo 0)
-                      HIGH_COUNT=$(grep -c '"severity":"high"' semgrep-results.json || echo 0)
-                      MEDIUM_COUNT=$(grep -c '"severity":"medium"' semgrep-results.json || echo 0)
-                      LOW_COUNT=$(grep -c '"severity":"low"' semgrep-results.json || echo 0)
+                      # Check if results file exists
+                      if [ ! -f semgrep-results.json ]; then
+                        echo "Warning: semgrep-results.json file not found"
+                        export CRITICAL_VULNS=0
+                        export HIGH_VULNS=0
+                        export MEDIUM_VULNS=0
+                        export LOW_VULNS=0
+                        export TOTAL_VULNS=0
+                        export AFFECTED_FILES_COUNT=0
+                      else
+                        # Extract vulnerability counts by severity using jq if available, fallback to grep
+                        if command -v jq > /dev/null; then
+                          CRITICAL_COUNT=$(jq '.results[] | select(.severity=="critical") | .severity' semgrep-results.json | wc -l)
+                          HIGH_COUNT=$(jq '.results[] | select(.severity=="high") | .severity' semgrep-results.json | wc -l)
+                          MEDIUM_COUNT=$(jq '.results[] | select(.severity=="medium") | .severity' semgrep-results.json | wc -l)
+                          LOW_COUNT=$(jq '.results[] | select(.severity=="low") | .severity' semgrep-results.json | wc -l)
+                          AFFECTED_FILES=$(jq '.results[].path' semgrep-results.json | sort | uniq | wc -l)
+                        else
+                          # Fallback to grep method
+                          CRITICAL_COUNT=$(grep -c '"severity":"critical"' semgrep-results.json || echo 0)
+                          HIGH_COUNT=$(grep -c '"severity":"high"' semgrep-results.json || echo 0)
+                          MEDIUM_COUNT=$(grep -c '"severity":"medium"' semgrep-results.json || echo 0)
+                          LOW_COUNT=$(grep -c '"severity":"low"' semgrep-results.json || echo 0)
+                          AFFECTED_FILES=$(grep -o '"path":"[^"]*"' semgrep-results.json | sort | uniq | wc -l)
+                        fi
 
-                      # Extract affected files
-                      AFFECTED_FILES=$(grep -o '"path":"[^"]*"' semgrep-results.json | sort | uniq | wc -l)
-
-                      # Set output variables
-                      export CRITICAL_VULNS=$CRITICAL_COUNT
-                      export HIGH_VULNS=$HIGH_COUNT
-                      export MEDIUM_VULNS=$MEDIUM_COUNT
-                      export LOW_VULNS=$LOW_COUNT
-                      export TOTAL_VULNS=$((CRITICAL_COUNT + HIGH_COUNT + MEDIUM_COUNT + LOW_COUNT))
-                      export AFFECTED_FILES_COUNT=$AFFECTED_FILES
+                        # Set output variables
+                        export CRITICAL_VULNS=$CRITICAL_COUNT
+                        export HIGH_VULNS=$HIGH_COUNT
+                        export MEDIUM_VULNS=$MEDIUM_COUNT
+                        export LOW_VULNS=$LOW_COUNT
+                        export TOTAL_VULNS=$((CRITICAL_COUNT + HIGH_COUNT + MEDIUM_COUNT + LOW_COUNT))
+                        export AFFECTED_FILES_COUNT=$AFFECTED_FILES
+                      fi
 
                       # Print summary
                       echo "Vulnerability Summary:"
@@ -158,11 +176,12 @@ pipeline:
                       echo "Generating security scan summary report..."
 
                       # Extract key statistics from scan results
-                      TOTAL_FINDINGS=$(echo "$SCAN_RESULTS" | grep -c "finding")
-                      CRITICAL_FINDINGS=$(echo "$SCAN_RESULTS" | grep -c "critical")
-                      HIGH_FINDINGS=$(echo "$SCAN_RESULTS" | grep -c "high")
-                      MEDIUM_FINDINGS=$(echo "$SCAN_RESULTS" | grep -c "medium")
-                      LOW_FINDINGS=$(echo "$SCAN_RESULTS" | grep -c "low")
+                      TOTAL_FINDINGS=${TOTAL_VULNS:-0}
+                      CRITICAL_FINDINGS=${CRITICAL_VULNS:-0}
+                      HIGH_FINDINGS=${HIGH_VULNS:-0}
+                      MEDIUM_FINDINGS=${MEDIUM_VULNS:-0}
+                      LOW_FINDINGS=${LOW_VULNS:-0}
+                      AFFECTED_FILES=${AFFECTED_FILES_COUNT:-0}
 
                       # Generate the report
                       cat << EOF > scan_report.txt
@@ -177,9 +196,10 @@ pipeline:
                       - High severity: $HIGH_FINDINGS
                       - Medium severity: $MEDIUM_FINDINGS
                       - Low severity: $LOW_FINDINGS
+                      - Affected files: $AFFECTED_FILES
 
                       TOP VULNERABILITIES:
-                      $(echo "$SCAN_RESULTS" | grep -A 5 "critical\|high" | head -20)
+                      $(grep -A 5 "critical\|high" semgrep-results.json 2>/dev/null | head -20 || echo "No critical or high vulnerabilities found")
 
                       For complete details, please review the full scan results.
                       EOF
@@ -190,7 +210,12 @@ pipeline:
                       # Export report content as an output variable
                       export REPORT_CONTENT=$(cat scan_report.txt)
                     envVariables:
-                      SCAN_RESULTS: <+execution.steps.Semgrep_scan.output.outputVariables.SCAN_OUTPUT>
+                      TOTAL_VULNS: <+execution.steps.parse_results.output.outputVariables.TOTAL_VULNS>
+                      CRITICAL_VULNS: <+execution.steps.parse_results.output.outputVariables.CRITICAL_VULNS>
+                      HIGH_VULNS: <+execution.steps.parse_results.output.outputVariables.HIGH_VULNS>
+                      MEDIUM_VULNS: <+execution.steps.parse_results.output.outputVariables.MEDIUM_VULNS>
+                      LOW_VULNS: <+execution.steps.parse_results.output.outputVariables.LOW_VULNS>
+                      AFFECTED_FILES_COUNT: <+execution.steps.parse_results.output.outputVariables.AFFECTED_FILES_COUNT>
                     outputVariables:
                       - name: REPORT_CONTENT
                         type: String
@@ -209,9 +234,9 @@ pipeline:
                       echo "Setting pipeline variables based on scan results..."
 
                       # Get scan results from previous steps
-                      CRITICAL_ISSUES="<+execution.steps.Semgrep_scan.output.outputVariables.criticalIssues>"
-                      HIGH_ISSUES="<+execution.steps.Semgrep_scan.output.outputVariables.highIssues>"
-                      TOTAL_ISSUES="<+execution.steps.parse_results.output.outputVariables.totalIssues>"
+                      CRITICAL_ISSUES="${CRITICAL_ISSUES}"
+                      HIGH_ISSUES="${HIGH_ISSUES}"
+                      TOTAL_ISSUES="${TOTAL_ISSUES}"
 
                       # Set pipeline variables for downstream stages
                       export SCAN_STATUS="completed"
@@ -223,9 +248,9 @@ pipeline:
 
                       export SCAN_SUMMARY="Total: $TOTAL_ISSUES, Critical: $CRITICAL_ISSUES, High: $HIGH_ISSUES"
                     envVariables:
-                      CRITICAL_ISSUES: <+execution.steps.Semgrep_scan.output.outputVariables.criticalIssues>
-                      HIGH_ISSUES: <+execution.steps.Semgrep_scan.output.outputVariables.highIssues>
-                      TOTAL_ISSUES: <+execution.steps.parse_results.output.outputVariables.totalIssues>
+                      CRITICAL_ISSUES: <+execution.steps.parse_results.output.outputVariables.CRITICAL_VULNS>
+                      HIGH_ISSUES: <+execution.steps.parse_results.output.outputVariables.HIGH_VULNS>
+                      TOTAL_ISSUES: <+execution.steps.parse_results.output.outputVariables.TOTAL_VULNS>
                     outputVariables:
                       - name: SCAN_STATUS
                         type: String
@@ -271,9 +296,9 @@ pipeline:
                         exit 0
                       fi
                     envVariables:
-                      CRITICAL_COUNT: <+execution.steps.set_pipeline_variables.output.outputVariables.CRITICAL_COUNT>
-                      HIGH_COUNT: <+execution.steps.set_pipeline_variables.output.outputVariables.HIGH_COUNT>
-                      MEDIUM_COUNT: <+execution.steps.set_pipeline_variables.output.outputVariables.MEDIUM_COUNT>
+                      CRITICAL_COUNT: <+execution.steps.set_pipeline_variables.output.outputVariables.CRITICAL_ISSUES>
+                      HIGH_COUNT: <+execution.steps.set_pipeline_variables.output.outputVariables.HIGH_ISSUES>
+                      MEDIUM_COUNT: <+execution.steps.parse_results.output.outputVariables.MEDIUM_VULNS>
                   timeout: 10m
                   failureStrategies:
                     - onFailure:
@@ -281,6 +306,7 @@ pipeline:
                           - AllErrors
                         action:
                           type: Abort
+            rollbackSteps: []
     - stage:
         name: Build_image
         identifier: Build_image
@@ -368,4 +394,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 13:20:21 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 13:32:52 UTC by sankaranarayanan.m.
