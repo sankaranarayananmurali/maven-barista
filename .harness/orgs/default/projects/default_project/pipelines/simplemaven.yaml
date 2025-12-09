@@ -111,12 +111,12 @@ pipeline:
                       password: <+secrets.getValue("nexus_password")>
                       format: maven2
                       repository: maven-releases
-                      filename: ./target/*.jar
+                      filename: ./target/*.war
                       attributes: |-
                         -CgroupId=<+pipeline.variables.maven_group_id> 
                         -CartifactId=<+pipeline.variables.maven_artifact_id> 
                         -Cversion=<+pipeline.variables.maven_version> 
-                        -Aextension=jar
+                        -Aextension=war
                   timeout: 10m
             rollbackSteps: []
         delegateSelectors:
