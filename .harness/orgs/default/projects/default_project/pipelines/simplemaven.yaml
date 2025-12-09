@@ -111,12 +111,12 @@ pipeline:
                       password: <+secrets.getValue("nexus_password")>
                       format: maven2
                       repository: maven-releases
-                      filename: ./target/*.war
+                      filename: ./target/*.jar
                       attributes: |-
                         -CgroupId=<+pipeline.variables.maven_group_id> 
                         -CartifactId=<+pipeline.variables.maven_artifact_id> 
-                        -Cversion=<+pipeline.variables.maven_version> 
-                        -Aextension=war
+                        -Cversion=<+execution.steps.maven_build.output.outputVariables.MAVEN_VERSION> 
+                        -Aextension=jar
                   timeout: 10m
             rollbackSteps: []
         delegateSelectors:
@@ -470,4 +470,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 18:14:33 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 18:21:08 UTC by sankaranarayanan.m.
