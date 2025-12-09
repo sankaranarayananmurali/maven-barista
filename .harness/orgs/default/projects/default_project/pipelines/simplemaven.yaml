@@ -42,6 +42,7 @@ pipeline:
                     image: maven:3.9.6
                     shell: Sh
                     command: mvn clean package
+            rollbackSteps: []
         delegateSelectors:
           - docker-delegate
         action:
@@ -63,6 +64,8 @@ pipeline:
         identifier: Scan
         description: ""
         type: CI
+        delegateSelectors:
+          - docker-delegate
         spec:
           cloneCodebase: true
           caching:
@@ -176,6 +179,8 @@ pipeline:
         identifier: Build_Approval
         description: Approval stage for Docker image
         type: Approval
+        delegateSelectors:
+          - docker-delegate
         spec:
           platform:
             os: Linux
@@ -212,4 +217,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 12:35:38 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 12:41:26 UTC by sankaranarayanan.m.
