@@ -51,6 +51,7 @@ pipeline:
                     config: default
                     target:
                       type: repository
+                      workspace: .
                       detection: manual
                       name: maven-barista
                       variant: master
