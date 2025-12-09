@@ -11,6 +11,22 @@ pipeline:
         connectorRef: mavengithubconnector
         build: <+input>
         sparseCheckout: []
+  variables:
+    - name: nexus_url
+      type: String
+      value: https://nexus.example.com
+    - name: nexus_username
+      type: String
+      value: admin
+    - name: maven_group_id
+      type: String
+      value: com.example
+    - name: maven_artifact_id
+      type: String
+      value: maven-app
+    - name: maven_version
+      type: String
+      value: 1.0.0
   stages:
     - stage:
         name: mvn-build
@@ -81,7 +97,7 @@ pipeline:
                       password: <+secrets.getValue("nexus_password")>
                       format: maven2
                       repository: maven-releases
-                      filename: ./target/*.war
+                      filename: ./target/*.jar
                       attributes: |-
                         -CgroupId=<+pipeline.variables.maven_group_id> 
                         -CartifactId=<+pipeline.variables.maven_artifact_id> 
@@ -440,4 +456,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 17:39:06 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 18:08:42 UTC by sankaranarayanan.m.
