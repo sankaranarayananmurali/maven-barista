@@ -59,46 +59,6 @@ pipeline:
                       log:
                         level: info
                       fail_on_severity: high
-              - step:
-                  type: Run
-                  name: Send Semgrep Results Email
-                  identifier: SendSemgrepResultsEmail
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Sh
-                    command: |
-                      # Install ca-certificates and curl for sending email
-                      apk add --no-cache ca-certificates
-                      update-ca-certificates
-                      apk add --no-cache curl
-
-                      # Prepare email content
-                      SUBJECT="Semgrep Scan Results for <+pipeline.name>"
-                      RECIPIENT="sankaranarayanan.m@xenovex.com"
-
-                      # Create email body
-                      BODY="Pipeline: <+pipeline.name>\nStage: <+stage.name>\nExecution URL: <+pipeline.executionUrl>\n\nSemgrep Results Summary:\n${SEMGREP_RESULTS}"
-
-                      # Send email using curl
-                      curl -s --url "smtp://smtp.example.com:25" \
-                        --mail-from "harness@example.com" \
-                        --mail-rcpt "${RECIPIENT}" \
-                        --upload-file - <<EOF
-                      From: Harness CI <harness@example.com>
-                      To: ${RECIPIENT}
-                      Subject: ${SUBJECT}
-                      Content-Type: text/plain
-
-                      ${BODY}
-                      EOF
-
-                      echo "Email notification sent to ${RECIPIENT}"
-                    envVariables:
-                      SEMGREP_RESULTS: <+execution.steps.Semgrep_1.output.outputVariables.SEMGREP_SUMMARY>
-                  timeout: 10m
-                  when:
-                    stageStatus: All
             rollbackSteps: []
         delegateSelectors:
           - docker-delegate
