@@ -49,22 +49,17 @@ pipeline:
                   name: Semgrep Security Scan
                   identifier: semgrep_scan
                   spec:
-                    connectorRef: dockerhub
-                    config: default
                     mode: orchestration
+                    config: default
                     target:
                       type: repository
                       workspace: /workspace/src
-                    outputVariables:
-                      - name: SCAN_RESULTS_JSON
-                      - name: SCAN_RESULTS_SARIF
+                      detection: auto
                     advanced:
                       log:
                         level: info
-                      fail_on_severity: medium
-                    output:
-                      format: sarif
-                      file: /tmp/output.sarif
+                      fail_on_severity: high
+                    connectorRef: dockerhub
                   timeout: 10m
                   failureStrategies:
                     - onFailure:
