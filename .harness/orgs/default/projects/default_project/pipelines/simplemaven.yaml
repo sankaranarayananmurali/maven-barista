@@ -55,8 +55,8 @@ pipeline:
                         <servers>
                           <server>
                             <id>nexus-releases</id>
-                            <username>${NEXUS_USERNAME}</username>
-                            <password>${NEXUS_PASSWORD}</password>
+                            <username>admin</username>
+                            <password>@16feb1998</password>
                           </server>
                         </servers>
                       </settings>
