@@ -45,14 +45,28 @@ pipeline:
                       # Create .m2 directory if it doesn't exist
                       mkdir -p ~/.m2
 
-                      # Copy the mounted secret file to settings.xml location
-                      cp /harness/maven_settings_xml ~/.m2/settings.xml
+                      # Generate settings.xml file with nexus-releases server configuration
+                      cat > ~/.m2/settings.xml << EOF
+                      <?xml version="1.0" encoding="UTF-8"?>
+                      <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                                http://maven.apache.org/xsd/settings-1.0.0.xsd">
+                        <servers>
+                          <server>
+                            <id>nexus-releases</id>
+                            <username>${NEXUS_USERNAME}</username>
+                            <password>${NEXUS_PASSWORD}</password>
+                          </server>
+                        </servers>
+                      </settings>
+                      EOF
 
                       # Run maven deploy
                       mvn clean deploy
-                    secretMounts:
-                      - path: /harness/maven_settings_xml
-                        secretRef: maven_settings_xml
+                    envVariables:
+                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
+                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
                   timeout: 10m
               - step:
                   type: Plugin
@@ -426,4 +440,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 17:35:01 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 17:39:06 UTC by sankaranarayanan.m.
