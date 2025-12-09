@@ -35,5 +35,24 @@
             </plugin>
         </plugins>
     </build>
-
+    <build>
+<extensions>
+<extension>
+<groupId>org.apache.maven.wagon</groupId>
+<artifactId>wagon-webdav-jackrabbit</artifactId>
+<version>3.87.1</version>
+</extension>
+</extensions>
+</build>
+<distributionManagement>
+<repository>
+<id>nexus-releases</id>
+<url>http://10.10.10.20:8081/repository/maven-releases/</url>
+</repository>
+<snapshotRepository>
+<id>nexus-snapshots</id>
+<url>http://10.10.10.20:8081/repository/maven-snapshots/</url>
+</snapshotRepository>
+</distributionManagement>
+         
 </project>
