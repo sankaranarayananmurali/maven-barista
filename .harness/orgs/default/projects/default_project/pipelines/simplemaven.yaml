@@ -67,23 +67,6 @@ pipeline:
                           - AllErrors
                         action:
                           type: MarkAsFailure
-              - step:
-                  type: Run
-                  name: Archive SARIF Reports
-                  identifier: archive_sarif
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Bash
-                    command: |
-                      echo "Archiving SARIF reports after Semgrep scan failure..."
-                      mkdir -p /harness/artifacts
-                      cp /tmp/output.sarif /harness/artifacts/semgrep-results.sarif || echo "SARIF file not found"
-                      echo "SARIF reports archived successfully"
-                  timeout: 10m
-                  when:
-                    stageStatus: Failure
-                    condition: <+execution.steps.semgrep_scan.status> == "FAILED"
             rollbackSteps: []
         delegateSelectors:
           - docker-delegate
@@ -186,4 +169,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-08 16:23:28 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 05:00:18 UTC by sankaranarayanan.m.
