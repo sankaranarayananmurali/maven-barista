@@ -45,20 +45,6 @@ pipeline:
             rollbackSteps: []
         delegateSelectors:
           - docker-delegate
-        action:
-          type: Notification
-          spec:
-            notificationRules:
-              - notificationChannel: Email
-                recipients:
-                  - sankaranarayanan.m@xenovex.com
-                subject: Harness CI - Semgrep FAILED for <+pipeline.name>
-                body: |-
-                  Semgrep security scan FAILED.
-                  Pipeline: <+pipeline.name>
-                  Stage: <+stage.name>
-                  Execution URL: <+pipeline.executionUrl>
-                  SARIF report is attached in the artifacts section.
     - stage:
         name: Scan
         identifier: Scan
@@ -114,21 +100,34 @@ pipeline:
                     image: alpine
                     shell: Bash
                     command: |
-                      # Check if SARIF report exists and copy to artifacts directory
-                      if [ -f "report.sarif" ]; then
-                        mkdir -p /harness/artifacts
-                        cp report.sarif /harness/artifacts/
-                        echo "SARIF report saved to artifacts directory"
-                      elif [ -f "/harness/report.sarif" ]; then
-                        mkdir -p /harness/artifacts
-                        cp /harness/report.sarif /harness/artifacts/
-                        echo "SARIF report saved to artifacts directory"
+                      # Create artifacts directory
+                      mkdir -p /harness/artifacts
+
+                      # Simple search for SARIF files and copy to artifacts
+                      echo "Searching for SARIF files..."
+                      find . -name "*.sarif" -type f -exec cp {} /harness/artifacts/ \; -exec echo "Copied {} to artifacts directory" \;
+
+                      # List what was found
+                      echo "Contents of artifacts directory:"
+                      ls -la /harness/artifacts/
+
+                      # Simple status check
+                      if [ "$(ls -A /harness/artifacts/)" ]; then
+                        echo "SUCCESS: SARIF report(s) saved to artifacts directory"
                       else
-                        echo "SARIF report not found in expected locations"
-                        # Try to find the report
-                        find . -name "*.sarif" -type f -exec cp {} /harness/artifacts/ \; -exec echo "Found and copied {} to artifacts" \;
+                        echo "WARNING: No SARIF files were found"
                       fi
                   timeout: 10m
+              - step:
+                  type: ArtifactoryUpload
+                  name: Upload SARIF to Artifactory
+                  identifier: Upload_SARIF_to_Artifactory
+                  timeout: 10m
+                  spec:
+                    connectorRef: <+input>
+                    sourcePath: /harness/artifacts/report.sarif
+                    target: <+input>
+                    uploadAsFlat: true
             rollbackSteps: []
     - stage:
         name: Build_image
@@ -217,4 +216,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 12:46:28 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 13:02:00 UTC by sankaranarayanan.m.
