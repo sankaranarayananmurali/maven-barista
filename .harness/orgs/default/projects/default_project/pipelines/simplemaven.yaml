@@ -95,8 +95,8 @@ pipeline:
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Bash
-                    command: |
+                    shell: Sh
+                    command: |-
                       # Parse Semgrep scan results
                       echo "Parsing Semgrep scan results..."
 
@@ -127,11 +127,23 @@ pipeline:
                       echo "Affected Files: $AFFECTED_FILES_COUNT"
                     outputVariables:
                       - name: CRITICAL_VULNS
+                        type: String
+                        value: CRITICAL_VULNS
                       - name: HIGH_VULNS
+                        type: String
+                        value: HIGH_VULNS
                       - name: MEDIUM_VULNS
+                        type: String
+                        value: MEDIUM_VULNS
                       - name: LOW_VULNS
+                        type: String
+                        value: LOW_VULNS
                       - name: TOTAL_VULNS
+                        type: String
+                        value: TOTAL_VULNS
                       - name: AFFECTED_FILES_COUNT
+                        type: String
+                        value: AFFECTED_FILES_COUNT
                   timeout: 10m
               - step:
                   type: Run
@@ -140,8 +152,8 @@ pipeline:
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Bash
-                    command: |
+                    shell: Sh
+                    command: |-
                       # Create a summary report of scan findings
                       echo "Generating security scan summary report..."
 
@@ -181,6 +193,8 @@ pipeline:
                       SCAN_RESULTS: <+execution.steps.Semgrep_scan.output.outputVariables.SCAN_OUTPUT>
                     outputVariables:
                       - name: REPORT_CONTENT
+                        type: String
+                        value: REPORT_CONTENT
                   timeout: 10m
               - step:
                   type: Run
@@ -189,8 +203,8 @@ pipeline:
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Bash
-                    command: |
+                    shell: Sh
+                    command: |-
                       # Extract scan results and set pipeline variables
                       echo "Setting pipeline variables based on scan results..."
 
@@ -214,8 +228,14 @@ pipeline:
                       TOTAL_ISSUES: <+execution.steps.parse_results.output.outputVariables.totalIssues>
                     outputVariables:
                       - name: SCAN_STATUS
+                        type: String
+                        value: SCAN_STATUS
                       - name: HAS_CRITICAL_ISSUES
+                        type: String
+                        value: HAS_CRITICAL_ISSUES
                       - name: SCAN_SUMMARY
+                        type: String
+                        value: SCAN_SUMMARY
                   timeout: 10m
               - step:
                   type: Run
@@ -224,8 +244,8 @@ pipeline:
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Bash
-                    command: |
+                    shell: Sh
+                    command: |-
                       # Get severity counts from previous step
                       CRITICAL_COUNT=${CRITICAL_COUNT:-0}
                       HIGH_COUNT=${HIGH_COUNT:-0}
