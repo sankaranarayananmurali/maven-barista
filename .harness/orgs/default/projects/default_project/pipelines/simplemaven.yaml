@@ -68,7 +68,9 @@ pipeline:
                     image: alpine
                     shell: Sh
                     command: |
-                      # Install curl for sending email
+                      # Install ca-certificates and curl for sending email
+                      apk add --no-cache ca-certificates
+                      update-ca-certificates
                       apk add --no-cache curl
 
                       # Prepare email content
@@ -97,6 +99,7 @@ pipeline:
                   timeout: 10m
                   when:
                     stageStatus: All
+            rollbackSteps: []
         delegateSelectors:
           - docker-delegate
         action:
@@ -198,4 +201,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 05:00:18 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 06:05:26 UTC by sankaranarayanan.m.
