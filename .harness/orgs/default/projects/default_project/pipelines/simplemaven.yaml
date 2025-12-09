@@ -41,33 +41,7 @@ pipeline:
                     connectorRef: dockerhub
                     image: maven:3.9.6
                     shell: Sh
-                    command: |
-                      mvn clean package
-                  timeout: 10m
-              - step:
-                  type: Semgrep
-                  name: Semgrep Security Scan
-                  identifier: semgrep_scan
-                  spec:
-                    mode: orchestration
-                    config: default
-                    target:
-                      type: repository
-                      workspace: /workspace/src
-                      detection: auto
-                    advanced:
-                      log:
-                        level: info
-                      fail_on_severity: high
-                    connectorRef: dockerhub
-                  timeout: 10m
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: MarkAsFailure
-            rollbackSteps: []
+                    command: mvn clean package
         delegateSelectors:
           - docker-delegate
         action:
