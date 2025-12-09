@@ -65,7 +65,6 @@ pipeline:
                           - AllErrors
                         action:
                           type: MarkAsFailure
-            rollbackSteps: []
         delegateSelectors:
           - docker-delegate
         action:
