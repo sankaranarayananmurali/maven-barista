@@ -14,7 +14,7 @@ pipeline:
   variables:
     - name: nexus_url
       type: String
-      value: https://nexus.example.com
+      value: http://10.10.10.20:8081/
     - name: nexus_username
       type: String
       value: admin
