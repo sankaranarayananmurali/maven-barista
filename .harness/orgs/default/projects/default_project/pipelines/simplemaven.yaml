@@ -41,7 +41,18 @@ pipeline:
                     connectorRef: dockerhub
                     image: maven:3.9.6
                     shell: Sh
-                    command: mvn clean deploy
+                    command: |
+                      # Create .m2 directory if it doesn't exist
+                      mkdir -p ~/.m2
+
+                      # Copy the mounted secret file to settings.xml location
+                      cp /harness/maven_settings_xml ~/.m2/settings.xml
+
+                      # Run maven deploy
+                      mvn clean deploy
+                    secretMounts:
+                      - path: /harness/maven_settings_xml
+                        secretRef: maven_settings_xml
                   timeout: 10m
               - step:
                   type: Plugin
@@ -415,4 +426,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-09 17:07:39 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-09 17:35:01 UTC by sankaranarayanan.m.
