@@ -44,18 +44,19 @@ pipeline:
                     command: mvn clean package
               - step:
                   type: Semgrep
-                  name: Semgrep_1
+                  name: Semgrep_scan
                   identifier: Semgrep_1
                   spec:
+                    mode: orchestration
+                    config: default
                     target:
-                      detection: auto
                       type: repository
+                      detection: manual
+                      name: maven-barista
+                      variant: master
                     advanced:
                       log:
                         level: info
-                      args: {}
-                    mode: orchestration
-                    config: default
         delegateSelectors:
           - docker-delegate
         action:
