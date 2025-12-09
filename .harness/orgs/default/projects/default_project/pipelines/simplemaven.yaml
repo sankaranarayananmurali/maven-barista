@@ -59,6 +59,12 @@ pipeline:
                       log:
                         level: info
                       fail_on_severity: critical
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: MarkAsFailure
             rollbackSteps: []
         delegateSelectors:
           - docker-delegate
