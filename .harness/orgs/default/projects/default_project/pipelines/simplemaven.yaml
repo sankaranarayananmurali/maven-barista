@@ -170,8 +170,8 @@ pipeline:
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Bash
-                    command: |
+                    shell: Sh
+                    command: |-
                       # Check if semgrep-results.json exists and copy it to scan_report.json
                       if [ -f semgrep-results.json ]; then
                         echo "Copying semgrep-results.json to scan_report.json"
