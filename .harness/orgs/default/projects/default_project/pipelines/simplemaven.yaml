@@ -116,8 +116,8 @@ pipeline:
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Bash
-                    command: |
+                    shell: Sh
+                    command: |-
                       # Install necessary tools
                       apk add --no-cache curl grep
 
@@ -149,6 +149,8 @@ pipeline:
                       MAVEN_VERSION: <+execution.steps.maven_build.output.outputVariables.MAVEN_VERSION>
                     outputVariables:
                       - name: ARTIFACT_TYPE
+                        type: String
+                        value: ARTIFACT_TYPE
                   timeout: 10m
               - step:
                   type: Plugin
