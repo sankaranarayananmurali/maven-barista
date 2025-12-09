@@ -81,7 +81,7 @@ pipeline:
                       password: <+secrets.getValue("nexus_password")>
                       format: maven2
                       repository: maven-releases
-                      filename: ./target/*.jar
+                      filename: ./target/*.war
                       attributes: |-
                         -CgroupId=<+pipeline.variables.maven_group_id> 
                         -CartifactId=<+pipeline.variables.maven_artifact_id> 
