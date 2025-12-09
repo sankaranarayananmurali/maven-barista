@@ -91,44 +91,6 @@ pipeline:
                           - AllErrors
                         action:
                           type: MarkAsFailure
-              - step:
-                  type: Run
-                  name: Save SARIF Report
-                  identifier: Save_SARIF_Report
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Bash
-                    command: |
-                      # Create artifacts directory
-                      mkdir -p /harness/artifacts
-
-                      # Simple search for SARIF files and copy to artifacts
-                      echo "Searching for SARIF files..."
-                      find . -name "*.sarif" -type f -exec cp {} /harness/artifacts/ \; -exec echo "Copied {} to artifacts directory" \;
-
-                      # List what was found
-                      echo "Contents of artifacts directory:"
-                      ls -la /harness/artifacts/
-
-                      # Simple status check
-                      if [ "$(ls -A /harness/artifacts/)" ]; then
-                        echo "SUCCESS: SARIF report(s) saved to artifacts directory"
-                      else
-                        echo "WARNING: No SARIF files were found"
-                      fi
-                  timeout: 10m
-              - step:
-                  type: ArtifactoryUpload
-                  name: Upload SARIF to Artifactory
-                  identifier: Upload_SARIF_to_Artifactory
-                  timeout: 10m
-                  spec:
-                    connectorRef: <+input>
-                    sourcePath: /harness/artifacts/report.sarif
-                    target: <+input>
-                    uploadAsFlat: true
-            rollbackSteps: []
     - stage:
         name: Build_image
         identifier: Build_image
