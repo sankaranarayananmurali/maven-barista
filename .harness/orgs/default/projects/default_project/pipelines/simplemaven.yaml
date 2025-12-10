@@ -64,10 +64,7 @@ pipeline:
 
                       cat > ~/.m2/settings.xml << EOF
                       <?xml version="1.0" encoding="UTF-8"?>
-                      <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                                xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-                                http://maven.apache.org/xsd/settings-1.0.0.xsd">
+                      <settings>
                         <servers>
                           <server>
                             <id>nexus-releases</id>
@@ -89,7 +86,6 @@ pipeline:
                       echo "Generated version: ${DYNAMIC_VERSION}"
 
                       mvn versions:set -DnewVersion=${DYNAMIC_VERSION} -DgenerateBackupPoms=false
-
                       mvn clean deploy
 
                       export MAVEN_VERSION=${DYNAMIC_VERSION}
@@ -108,6 +104,8 @@ pipeline:
         name: Scan
         identifier: Scan
         type: CI
+        delegateSelectors:
+          - docker-delegate
         spec:
           cloneCodebase: true
           caching:
@@ -120,8 +118,7 @@ pipeline:
             arch: Amd64
           runtime:
             type: Docker
-            spec:
-              harnessImageConnectorRef: dockerhub
+            spec: {}
           execution:
             steps:
               - step:
@@ -134,20 +131,20 @@ pipeline:
                     target:
                       type: repository
                       workspace: .
-                      detection: auto
+                    detection: auto
                     advanced:
                       log:
-                        level: debug
+                        level: info
                       fail_on_severity: critical
+                    outputVariables:
+                      - name: semgrep_findings
                     settings:
                       report:
                         enabled: true
                         format: json
                         path: semgrep-report.json
-                        directory: ./reports
+                        directory: ./
                       verbose: true
-                      failOnError: false
-                      retryOnFailure: true
                   failureStrategies:
                     - onFailure:
                         errors:
@@ -161,121 +158,72 @@ pipeline:
                   identifier: verify_report_exists
                   spec:
                     connectorRef: account.harnessImage
-                    image: alpine
+                    image: alpine:3.18
                     shell: Sh
                     command: |
-                      echo "Checking semgrep-report.json..."
+                      set -e
 
-                      if [ -f "semgrep-report.json" ]; then
-                        export REPORT_EXISTS="true"
-                        echo "Report found. Checking file details:"
-                        ls -la semgrep-report.json
-                        echo "File size: $(du -h semgrep-report.json | cut -f1)"
-                        echo "File creation time: $(stat -c '%y' semgrep-report.json)"
-                        echo "Number of findings: $(grep -o '"findings":' semgrep-report.json | wc -l)"
+                      echo "Looking for semgrep JSON or SARIF..."
+
+                      if [ -f "./semgrep-report.json" ]; then
+                        REPORT_PATH="$(pwd)/semgrep-report.json"
+                        REPORT_EXISTS="true"
                       else
-                        export REPORT_EXISTS="false"
-                        echo "Report not found. Checking directory contents:"
-                        ls -la
+                        SARIF_FILE="$(find . /tmp -type f -name '*.sarif' -print -quit || true)"
+
+                        if [ -n "$SARIF_FILE" ]; then
+                          cp "$SARIF_FILE" ./semgrep-report.sarif
+                          REPORT_PATH="$(pwd)/semgrep-report.sarif"
+                          REPORT_EXISTS="true"
+                        else
+                          REPORT_EXISTS="false"
+                          REPORT_PATH=""
+                        fi
                       fi
 
-                      echo "REPORT_EXISTS=$REPORT_EXISTS"
+                      echo "REPORT_EXISTS=${REPORT_EXISTS}"
+                      echo "REPORT_PATH=${REPORT_PATH}"
+                      export REPORT_EXISTS
+                      export REPORT_PATH
                   outputVariables:
                     - name: REPORT_EXISTS
+                    - name: REPORT_PATH
                   timeout: 10m
               - step:
-                  type: Run
-                  name: Upload Scan Report to Nexus
                   identifier: upload_scan_report
+                  name: Upload Scan Report to Nexus
+                  type: Run
+                  timeout: 10m
                   when:
-                    stageStatus: Success
                     condition: <+execution.steps.verify_report_exists.output.outputVariables.REPORT_EXISTS> == "true"
+                    stageStatus: Success
                   spec:
                     connectorRef: account.harnessImage
                     image: curlimages/curl:latest
                     shell: Sh
                     command: |
-                      echo "Checking for semgrep-report.json..."
+                      set -e
 
-                      if [ ! -f "semgrep-report.json" ]; then
-                        echo "ERROR: Report file not found!"
+                      echo "Uploading report: ${REPORT_PATH}"
+
+                      if [ ! -f "${REPORT_PATH}" ]; then
+                        echo "Error: Report file does not exist!"
                         exit 1
                       fi
 
-                      # Validate file is not empty
-                      if [ ! -s "semgrep-report.json" ]; then
-                        echo "ERROR: Report file exists but is empty!"
-                        exit 1
-                      fi
+                      FILE_NAME="$(basename "${REPORT_PATH}")"
+                      TARGET_URL="http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/${FILE_NAME}"
 
-                      # Generate dynamic filename with pipeline sequence ID, timestamp and maven version
-                      TIMESTAMP=$(date +%Y%m%d%H%M%S)
-                      FILENAME="scan_report_<+pipeline.sequenceId>_${TIMESTAMP}_${MAVEN_VERSION}.json"
-                      echo "Using dynamic filename: ${FILENAME}"
-
-                      # Create target directory path for logging
-                      TARGET_PATH="<+pipeline.variables.nexus_url>repository/raw-reports/scan-reports/<+pipeline.variables.maven_group_id>/<+pipeline.variables.maven_artifact_id>/${FILENAME}"
-                      echo "Uploading to: ${TARGET_PATH}"
-
-                      # Attempt upload with proper error handling
-                      HTTP_RESPONSE=$(curl -s -w "%{http_code}" \
+                      curl --fail -v \
                         -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
-                        --upload-file semgrep-report.json \
-                        "${TARGET_PATH}")
+                        --upload-file "${REPORT_PATH}" \
+                        "${TARGET_URL}"
 
-                      HTTP_STATUS=${HTTP_RESPONSE: -3}
-
-                      if [[ $HTTP_STATUS -ge 200 && $HTTP_STATUS -lt 300 ]]; then
-                        echo "SUCCESS: Report uploaded successfully with status code ${HTTP_STATUS}"
-                      else
-                        echo "ERROR: Failed to upload report. Status code: ${HTTP_STATUS}"
-                        exit 1
-                      fi
+                      echo "Uploaded successfully!"
                     envVariables:
                       NEXUS_USERNAME: <+pipeline.variables.nexus_username>
                       NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
-                      MAVEN_VERSION: <+pipeline.variables.maven_version>
-                  timeout: 10m
-              - step:
-                  type: Run
-                  name: Debug Scan Report
-                  identifier: debug_scan_report
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Bash
-                    command: |
-                      echo "=== Semgrep Scan Debug Information ==="
-                      echo "Checking for semgrep-report.json file..."
-
-                      if [ -f "semgrep-report.json" ]; then
-                        echo "Report file exists. Getting file details:"
-                        ls -la semgrep-report.json
-                        echo "File size: $(du -h semgrep-report.json | cut -f1)"
-                        echo "\nReport summary:"
-                        cat semgrep-report.json | grep -E '"errors":|"results":|"version":' || echo "Could not parse report JSON"
-                        
-                        echo "\nCounting findings by severity:"
-                        grep -o '"severity": "[^"]*"' semgrep-report.json | sort | uniq -c || echo "No severity data found"
-                      else
-                        echo "Report file does not exist. Checking Semgrep process status:"
-                        ps aux | grep semgrep || echo "No semgrep process found"
-                        
-                        echo "\nChecking for any semgrep output in current directory:"
-                        find . -name "*semgrep*" -type f | xargs ls -la 2>/dev/null || echo "No semgrep output files found"
-                      fi
-
-                      echo "\nEnvironment information:"
-                      echo "Working directory: $(pwd)"
-                      echo "Available disk space: $(df -h . | tail -1 | awk '{print $4}')"
-
-                      echo "\nDebug complete."
-                    outputVariables:
-                      - name: DEBUG_COMPLETED
-                  timeout: 10m
-            rollbackSteps: []
-        delegateSelectors:
-          - docker-delegate
+          rollbackSteps: []
     - stage:
         name: Build_image
         identifier: Build_image
@@ -332,21 +280,19 @@ pipeline:
             steps:
               - step:
                   type: HarnessApproval
-                  name: Docker Image Approval
-                  identifier: Docker_image_Approval
-                  timeout: 1d
+                  name: Approval
+                  identifier: Approval
+                  timeout: 1h
                   spec:
-                    approvalMessage: |
-                      Please review the results and approve the build.
-
-                      Docker Image: sankaranarayananmurali/maven-v1:<+pipeline.sequenceId>
-                      Maven Artifact: <+pipeline.variables.maven_group_id>:<+pipeline.variables.maven_artifact_id>:<+pipeline.variables.maven_version>
+                    approvalMessage: Please approve this execution
                     includePipelineExecutionHistory: true
                     approvers:
-                      minimumCount: 1
-                      disallowPipelineExecutor: false
                       userGroups:
                         - account._account_all_users
+                      minimumCount: 1
+                      disallowPipelineExecutor: false
+                    isAutoRejectEnabled: false
+                    approverInputs: []
               - step:
                   type: Email
                   name: Email_Notification
@@ -359,7 +305,4 @@ pipeline:
 
                       Pipeline: <+pipeline.name>
                       Build Number: <+pipeline.sequenceId>
-                      Maven Version: <+pipeline.stages.mvnbuild.spec.execution.steps.maven_build.output.outputVariables.MAVEN_VERSION>
-                      Docker Image: sankaranarayananmurali/maven-v1:<+pipeline.sequenceId>
                   timeout: 10m
-  description: This pipeline was updated by Harness AI on 2025-12-10 10:58:42 UTC by sankaranarayanan.m.
