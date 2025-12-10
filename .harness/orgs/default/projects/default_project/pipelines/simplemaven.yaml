@@ -161,7 +161,7 @@ pipeline:
                         enabled: true
                         format: json
                         path: semgrep-report.json
-                        directory: ./
+                        directory: /shared/reports
                         verbose: true
                   failureStrategies:
                     - onFailure:
@@ -180,24 +180,40 @@ pipeline:
                     image: curlimages/curl:latest
                     shell: Sh
                     command: |
-                      echo "Uploading semgrep-report.json directly to Nexus Raw repository..."
+                      echo "Uploading semgrep-report.json to Nexus Raw repository..."
 
-                      # Check if report exists and validate it
-                      if [ ! -f "semgrep-report.json" ]; then
-                        echo "Error: semgrep-report.json file not found!"
-                        exit 1
+                      # Debug: List current directory contents
+                      echo "Current directory contents:"
+                      ls -la
+
+                      # Debug: Check shared paths
+                      echo "Checking shared paths:"
+                      ls -la /harness/
+
+                      # Look for the report in the shared location
+                      REPORT_PATH="./semgrep-report.json"
+                      if [ ! -f "$REPORT_PATH" ]; then
+                        echo "Report not found in current directory, checking shared paths..."
+                        REPORT_PATH="/harness/semgrep-report.json"
+                        if [ ! -f "$REPORT_PATH" ]; then
+                          echo "Error: semgrep-report.json file not found in any location!"
+                          exit 1
+                        fi
                       fi
 
+                      echo "Found report at: $REPORT_PATH"
+
                       # Validate JSON format
-                      if ! jq empty semgrep-report.json 2>/dev/null; then
-                        echo "Error: semgrep-report.json is not a valid JSON file!"
+                      if ! jq empty "$REPORT_PATH" 2>/dev/null; then
+                        echo "Error: $REPORT_PATH is not a valid JSON file!"
                         exit 1
                       fi
 
                       # Upload to Nexus
+                      echo "Uploading report to Nexus from $REPORT_PATH"
                       HTTP_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/curl_response \
                       -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
-                      --upload-file semgrep-report.json \
+                      --upload-file "$REPORT_PATH" \
                       "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json")
 
                       # Check HTTP response code
@@ -362,4 +378,4 @@ pipeline:
                       This is an automated notification from Harness CI/CD.
                   timeout: 10m
             rollbackSteps: []
-  description: This pipeline was updated by Harness AI on 2025-12-10 07:48:13 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 08:02:57 UTC by sankaranarayanan.m.
