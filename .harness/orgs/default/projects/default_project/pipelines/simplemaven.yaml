@@ -132,6 +132,8 @@ pipeline:
           runtime:
             type: Docker
             spec: {}
+          sharedPaths:
+            - /shared
           execution:
             steps:
               - step:
@@ -161,7 +163,7 @@ pipeline:
                         enabled: true
                         format: json
                         path: semgrep-report.json
-                        directory: /shared/reports
+                        directory: /shared
                         verbose: true
                   failureStrategies:
                     - onFailure:
@@ -188,16 +190,20 @@ pipeline:
 
                       # Debug: Check shared paths
                       echo "Checking shared paths:"
-                      ls -la /harness/
+                      ls -la /shared
 
                       # Look for the report in the shared location
-                      REPORT_PATH="./semgrep-report.json"
+                      REPORT_PATH="/shared/reports/semgrep-report.json"
                       if [ ! -f "$REPORT_PATH" ]; then
-                        echo "Report not found in current directory, checking shared paths..."
-                        REPORT_PATH="/harness/semgrep-report.json"
+                        echo "Report not found in shared directory, checking other locations..."
+                        REPORT_PATH="./semgrep-report.json"
                         if [ ! -f "$REPORT_PATH" ]; then
-                          echo "Error: semgrep-report.json file not found in any location!"
-                          exit 1
+                          echo "Report not found in current directory, checking harness path..."
+                          REPORT_PATH="/harness/semgrep-report.json"
+                          if [ ! -f "$REPORT_PATH" ]; then
+                            echo "Error: semgrep-report.json file not found in any location!"
+                            exit 1
+                          fi
                         fi
                       fi
 
@@ -378,4 +384,4 @@ pipeline:
                       This is an automated notification from Harness CI/CD.
                   timeout: 10m
             rollbackSteps: []
-  description: This pipeline was updated by Harness AI on 2025-12-10 08:02:57 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 08:08:47 UTC by sankaranarayanan.m.
