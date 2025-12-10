@@ -194,8 +194,8 @@ pipeline:
                     image: alpine
                     shell: Sh
                     command: |-
-                      # Install curl
-                      apk add --no-cache curl
+                      # Install ca-certificates first, then curl
+                      apk add --no-cache ca-certificates curl
 
                       # Upload scan_report.json to Nexus raw repository
                       curl -v \
@@ -295,4 +295,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 05:56:06 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 06:01:37 UTC by sankaranarayanan.m.
