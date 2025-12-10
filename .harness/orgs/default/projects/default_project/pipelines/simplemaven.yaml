@@ -58,6 +58,12 @@ pipeline:
                     image: maven:3.9.6
                     shell: Sh
                     command: |
+                      # Check if pom.xml exists
+                      if [ ! -f "pom.xml" ]; then
+                        echo "ERROR: pom.xml not found in the current directory!"
+                        exit 1
+                      fi
+
                       # Create .m2 directory if it doesn't exist
                       mkdir -p ~/.m2
 
@@ -89,18 +95,45 @@ pipeline:
                       DYNAMIC_VERSION="1.0.0-${TIMESTAMP}-${BUILD_NUMBER}"
                       echo "Generated dynamic version: ${DYNAMIC_VERSION}"
 
-                      # Update version in pom.xml
+                      # Update version in pom.xml with validation
                       mvn versions:set -DnewVersion=${DYNAMIC_VERSION} -DgenerateBackupPoms=false
+                      if [ $? -ne 0 ]; then
+                        echo "ERROR: Failed to update version in pom.xml!"
+                        exit 1
+                      fi
+                      echo "Successfully updated version in pom.xml to ${DYNAMIC_VERSION}"
 
                       # Run maven clean deploy which will automatically upload to Nexus
                       mvn clean deploy
+                      if [ $? -ne 0 ]; then
+                        echo "ERROR: Maven build or deploy failed!"
+                        exit 1
+                      fi
+                      echo "Maven build and deploy completed successfully"
 
                       # Export the dynamic version as an output variable
                       export MAVEN_VERSION=${DYNAMIC_VERSION}
 
-                      # Export the artifact path as an output variable
+                      # Export the artifact path as an output variable with validation
                       ARTIFACT_PATH=$(find ./target -name "*.jar" -o -name "*.war" | head -1)
+                      if [ -z "$ARTIFACT_PATH" ]; then
+                        echo "ERROR: No artifact (JAR/WAR) found in target directory!"
+                        exit 1
+                      fi
                       echo "Found artifact at: ${ARTIFACT_PATH}"
+
+                      # Validate artifact exists and has content
+                      if [ ! -f "$ARTIFACT_PATH" ]; then
+                        echo "ERROR: Artifact file does not exist at path: ${ARTIFACT_PATH}"
+                        exit 1
+                      fi
+
+                      if [ ! -s "$ARTIFACT_PATH" ]; then
+                        echo "ERROR: Artifact file is empty: ${ARTIFACT_PATH}"
+                        exit 1
+                      fi
+
+                      echo "Artifact validation successful"
                       export ARTIFACT_PATH=${ARTIFACT_PATH}
                     envVariables:
                       NEXUS_USERNAME: <+pipeline.variables.nexus_username>
@@ -147,6 +180,18 @@ pipeline:
                     command: |
                       echo "=== Running Semgrep scan ==="
 
+                      # Check if jq is installed and install if needed
+                      if ! command -v jq &> /dev/null; then
+                        echo "jq not found. Installing jq..."
+                        apt-get update && apt-get install -y jq || (
+                          apk add --no-cache jq || (
+                            echo "Failed to install jq. Exiting."
+                            exit 1
+                          )
+                        )
+                      fi
+                      echo "jq is available: $(which jq)"
+
                       # Run Semgrep scan and output to JSON format
                       semgrep scan \
                         --config=auto \
@@ -163,15 +208,34 @@ pipeline:
                         exit 1
                       fi
 
+                      # Validate file size
+                      FILE_SIZE=$(stat -c%s "semgrep-report.json" 2>/dev/null || stat -f%z "semgrep-report.json")
+                      if [ "$FILE_SIZE" -eq 0 ]; then
+                        echo "ERROR: semgrep-report.json is empty!"
+                        exit 1
+                      fi
+
                       echo "Report generated:"
                       ls -lh semgrep-report.json
 
                       # Extract findings counts for output variables
                       TOTAL_FINDINGS=$(jq '.results | length' semgrep-report.json)
+                      if [ $? -ne 0 ]; then
+                        echo "ERROR: Failed to parse JSON with jq. Check report format."
+                        exit 1
+                      fi
+
                       CRITICAL_FINDINGS=$(jq '.results | map(select(.extra.severity == "ERROR")) | length' semgrep-report.json)
                       HIGH_FINDINGS=$(jq '.results | map(select(.extra.severity == "WARNING")) | length' semgrep-report.json)
                       MEDIUM_FINDINGS=$(jq '.results | map(select(.extra.severity == "INFO")) | length' semgrep-report.json)
                       LOW_FINDINGS=$(jq '.results | map(select(.extra.severity == "NONE")) | length' semgrep-report.json)
+
+                      echo "Findings summary:"
+                      echo "Total: $TOTAL_FINDINGS"
+                      echo "Critical: $CRITICAL_FINDINGS"
+                      echo "High: $HIGH_FINDINGS"
+                      echo "Medium: $MEDIUM_FINDINGS"
+                      echo "Low: $LOW_FINDINGS"
 
                       # Export findings as output variables
                       export TOTAL_FINDINGS="$TOTAL_FINDINGS"
@@ -181,6 +245,11 @@ pipeline:
                       export LOW_FINDINGS="$LOW_FINDINGS"
 
                       echo "=== Uploading to Nexus ==="
+
+                      # Validate Nexus URL
+                      if [[ ! "$NEXUS_URL" =~ ^https?:// ]]; then
+                        echo "WARNING: Nexus URL does not start with http:// or https://"
+                      fi
 
                       # Upload report to Nexus
                       HTTP_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/curl_response \
@@ -214,6 +283,13 @@ pipeline:
                       - name: MEDIUM_FINDINGS
                       - name: LOW_FINDINGS
                       - name: UPLOAD_STATUS
+                    resources:
+                      limits:
+                        memory: 1Gi
+                        cpu: 500m
+                      requests:
+                        memory: 512Mi
+                        cpu: 250m
                   timeout: 10m
             rollbackSteps: []
     - stage:
@@ -221,6 +297,8 @@ pipeline:
         identifier: SCA_Scan
         description: ""
         type: CI
+        delegateSelectors:
+          - docker-delegate
         spec:
           cloneCodebase: true
           caching:
@@ -233,7 +311,8 @@ pipeline:
             arch: Amd64
           runtime:
             type: Docker
-            spec: {}
+            spec:
+              harnessImageConnectorRef: dockerhub
           execution:
             steps:
               - step:
@@ -250,6 +329,7 @@ pipeline:
                       args: {}
                     mode: orchestration
                     config: default
+            rollbackSteps: []
     - stage:
         name: Build_image
         identifier: Build_image
@@ -353,7 +433,7 @@ pipeline:
                       - Execution URL: <+pipeline.executionUrl>
 
                       Scan Results:
-                      - Semgrep Findings: <+pipeline.stages.Scan.spec.execution.steps.Semgrep_scan.output.outputVariables.semgrep_findings>
+                      - Semgrep Findings: <+pipeline.stages.Scan.spec.execution.steps.Semgrep_and_Upload.output.outputVariables.TOTAL_FINDINGS>
                       - OWASP SCA Scan Completed: <+pipeline.stages.SCA_Scan.status>
 
                       Artifact Information:
@@ -363,4 +443,4 @@ pipeline:
                       This is an automated notification from Harness CI/CD.
                   timeout: 10m
             rollbackSteps: []
-  description: This pipeline was updated by Harness AI on 2025-12-10 08:34:35 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 08:46:44 UTC by sankaranarayanan.m.
