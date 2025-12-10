@@ -207,40 +207,6 @@ pipeline:
                       NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
             rollbackSteps: []
     - stage:
-        name: SCA_Scan
-        identifier: SCA_Scan
-        description: ""
-        type: CI
-        spec:
-          cloneCodebase: true
-          caching:
-            enabled: true
-            override: true
-          buildIntelligence:
-            enabled: true
-          platform:
-            os: Linux
-            arch: Amd64
-          runtime:
-            type: Docker
-            spec: {}
-          execution:
-            steps:
-              - step:
-                  type: Owasp
-                  name: Owasp_1
-                  identifier: Owasp_1
-                  spec:
-                    target:
-                      detection: auto
-                      type: repository
-                    advanced:
-                      log:
-                        level: info
-                      args: {}
-                    mode: orchestration
-                    config: default
-    - stage:
         name: Build_image
         identifier: Build_image
         description: Docker image build and push
