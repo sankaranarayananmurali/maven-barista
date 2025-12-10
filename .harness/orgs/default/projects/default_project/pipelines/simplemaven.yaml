@@ -146,9 +146,10 @@ pipeline:
                     connectorRef: account.harnessImage
                     image: alpine
                     shell: Sh
-                    command: |-
-                      # Install required tools
-                      apk add --no-cache curl jq find
+                    command: |
+                      # Update certificates and install required tools
+                      apk update
+                      apk add --no-cache ca-certificates curl jq findutils
 
                       # Define possible SARIF file locations to search
                       echo "Searching for SARIF files..."
@@ -304,7 +305,9 @@ pipeline:
                     image: alpine
                     shell: Sh
                     command: |
-                      apk add --no-cache curl
+                      # Update certificates and install curl
+                      apk update
+                      apk add --no-cache ca-certificates curl
 
                       if [ -f dependency-check-report.xml ]; then
                         curl -v \
@@ -319,6 +322,7 @@ pipeline:
                       MAVEN_GROUP_ID: <+pipeline.variables.maven_group_id>
                       MAVEN_ARTIFACT_ID: <+pipeline.variables.maven_artifact_id>
                   timeout: 10m
+            rollbackSteps: []
           rollbackSteps: []
         delegateSelectors:
           - docker-delegate
@@ -391,4 +395,4 @@ pipeline:
                       Build is approved!
                   timeout: 10m
           rollbackSteps: []
-  description: This pipeline was updated by Harness AI on 2025-12-10 12:43:13 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 12:52:01 UTC by sankaranarayanan.m.
