@@ -190,6 +190,9 @@ pipeline:
                   name: Upload Scan Report to Nexus
                   type: Run
                   timeout: 10m
+                  when:
+                    condition: <+execution.steps.verify_report_exists.output.outputVariables.REPORT_EXISTS> == "true"
+                    stageStatus: Success
                   spec:
                     connectorRef: account.harnessImage
                     image: curlimages/curl:latest
@@ -197,10 +200,20 @@ pipeline:
                     command: |
                       echo "Uploading semgrep-report.json directly to Nexus Raw repository..."
 
+                      if [ ! -f "semgrep-report.json" ]; then
+                        echo "Error: semgrep-report.json file not found!"
+                        exit 1
+                      fi
+
                       curl -v \
                       -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
                       --upload-file semgrep-report.json \
                       "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json"
+
+                      if [ $? -ne 0 ]; then
+                        echo "Error: Failed to upload scan report to Nexus!"
+                        exit 1
+                      fi
 
                       echo "Scan report uploaded successfully!"
                     envVariables:
@@ -328,4 +341,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 07:20:17 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 07:25:16 UTC by sankaranarayanan.m.
