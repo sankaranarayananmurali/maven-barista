@@ -191,11 +191,16 @@ pipeline:
                   timeout: 10m
                   spec:
                     connectorRef: account.harnessImage
-                    image: alpine
+                    image: alpine:3.18
                     shell: Sh
                     command: |-
-                      # Install ca-certificates first, then curl
-                      apk add --no-cache ca-certificates curl
+                      # Update CA certificates first
+                      apk update
+                      apk add --no-cache ca-certificates
+                      update-ca-certificates
+
+                      # Install curl
+                      apk add --no-cache curl
 
                       # Upload scan_report.json to Nexus raw repository
                       curl -v \
@@ -295,4 +300,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 06:01:37 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 06:05:45 UTC by sankaranarayanan.m.
