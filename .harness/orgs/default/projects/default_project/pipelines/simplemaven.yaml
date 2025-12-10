@@ -227,6 +227,42 @@ pipeline:
           execution:
             steps:
               - step:
+                  type: Run
+                  name: install_ruby
+                  identifier: install_ruby
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Bash
+                    command: |
+                      # Install dependencies needed for Ruby installation
+                      apk add --update --no-cache \
+                        build-base \
+                        libffi-dev \
+                        openssl-dev \
+                        readline-dev \
+                        zlib-dev \
+                        yaml-dev \
+                        wget \
+                        curl
+
+                      # Download and install Ruby 3.2.2
+                      wget https://cache.ruby-lang.org/pub/ruby/3.2/ruby-3.2.2.tar.gz
+                      tar -xzf ruby-3.2.2.tar.gz
+                      cd ruby-3.2.2
+                      ./configure
+                      make
+                      make install
+
+                      # Verify installation
+                      ruby -v
+
+                      # Export Ruby installation status
+                      export RUBY_INSTALLED="true"
+                    outputVariables:
+                      - name: RUBY_INSTALLED
+                  timeout: 10m
+              - step:
                   type: Owasp
                   name: Owasp_1
                   identifier: Owasp_1
@@ -239,14 +275,51 @@ pipeline:
                       detection: auto
                     advanced:
                       log:
-                        level: info
+                        level: debug
+                        serializer: simple
                       fail_on_severity: high
+                      args:
+                        cli: "--network-timeout 60 --retries 3"
+                    outputVariables:
+                      - name: scan_status
+                      - name: vulnerability_count
+                    settings:
+                      network:
+                        proxy_host: <+env.HTTP_PROXY_HOST>
+                        proxy_port: <+env.HTTP_PROXY_PORT>
+                        no_proxy: <+env.NO_PROXY>
+                        timeout: 120
+                  timeout: 20m
                   failureStrategies:
                     - onFailure:
                         errors:
                           - AllErrors
                         action:
-                          type: MarkAsFailure
+                          type: Retry
+                          spec:
+                            retryCount: 2
+                            retryIntervals:
+                              - 60s
+                              - 120s
+                            onRetryFailure:
+                              action:
+                                type: MarkAsFailure
+                    - onFailure:
+                        errors:
+                          - Connectivity
+                          - Timeout
+                        action:
+                          type: Retry
+                          spec:
+                            retryCount: 3
+                            retryIntervals:
+                              - 30s
+                              - 60s
+                              - 120s
+                            onRetryFailure:
+                              action:
+                                type: MarkAsFailure
+            rollbackSteps: []
         delegateSelectors:
           - docker-delegate
     - stage:
@@ -336,4 +409,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 07:06:40 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 11:48:46 UTC by sankaranarayanan.m.
