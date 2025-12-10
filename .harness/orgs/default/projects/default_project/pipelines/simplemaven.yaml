@@ -194,16 +194,23 @@ pipeline:
                         exit 1
                       fi
 
+                      # Generate dynamic filename with pipeline sequence ID, timestamp and maven version
+                      TIMESTAMP=$(date +%Y%m%d%H%M%S)
+                      FILENAME="scan_report_<+pipeline.sequenceId>_${TIMESTAMP}_${MAVEN_VERSION}.json"
+                      echo "Using dynamic filename: ${FILENAME}"
+
                       curl -v \
                         -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
                         --upload-file semgrep-report.json \
-                        "<+pipeline.variables.nexus_url>repository/raw-reports/scan-reports/<+pipeline.variables.maven_group_id>/<+pipeline.variables.maven_artifact_id>/scan_report.json"
+                        "<+pipeline.variables.nexus_url>repository/raw-reports/scan-reports/<+pipeline.variables.maven_group_id>/<+pipeline.variables.maven_artifact_id>/${FILENAME}"
 
                       echo "Uploaded successfully!"
                     envVariables:
                       NEXUS_USERNAME: <+pipeline.variables.nexus_username>
                       NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+                      MAVEN_VERSION: <+pipeline.variables.maven_version>
                   timeout: 10m
+            rollbackSteps: []
     - stage:
         name: Build_image
         identifier: Build_image
@@ -290,3 +297,4 @@ pipeline:
                       Maven Version: <+pipeline.stages.mvnbuild.spec.execution.steps.maven_build.output.outputVariables.MAVEN_VERSION>
                       Docker Image: sankaranarayananmurali/maven-v1:<+pipeline.sequenceId>
                   timeout: 10m
+  description: This pipeline was updated by Harness AI on 2025-12-10 10:50:37 UTC by sankaranarayanan.m.
