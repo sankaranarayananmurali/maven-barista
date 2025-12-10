@@ -120,7 +120,8 @@ pipeline:
             arch: Amd64
           runtime:
             type: Docker
-            spec: {}
+            spec:
+              harnessImageConnectorRef: dockerhub
           execution:
             steps:
               - step:
@@ -211,6 +212,8 @@ pipeline:
                       MAVEN_VERSION: <+pipeline.variables.maven_version>
                   timeout: 10m
             rollbackSteps: []
+        delegateSelectors:
+          - docker-delegate
     - stage:
         name: Build_image
         identifier: Build_image
