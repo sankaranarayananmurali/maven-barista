@@ -113,99 +113,89 @@ pipeline:
         delegateSelectors:
           - docker-delegate
     - stage:
-        name: Scan
-        identifier: Scan
-        description: ""
+        name: Security Scan
+        identifier: security_scan
         type: CI
-        delegateSelectors:
-          - docker-delegate
         spec:
           cloneCodebase: true
-          caching:
-            enabled: true
-            override: true
-          buildIntelligence:
-            enabled: true
-          platform:
-            os: Linux
-            arch: Amd64
           runtime:
             type: Docker
             spec: {}
           execution:
             steps:
               - step:
-                  type: Semgrep
-                  name: Semgrep_scan
-                  identifier: Semgrep_scan
-                  spec:
-                    mode: orchestration
-                    config: default
-                    target:
-                      type: repository
-                      workspace: .
-                      detection: auto
-                    advanced:
-                      log:
-                        level: info
-                      fail_on_severity: critical
-                    outputVariables:
-                      - name: semgrep_findings
-                    settings:
-                      report:
-                        enabled: true
-                        format: json
-                        path: semgrep-report.json
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: MarkAsFailure
-                  timeout: 10m
-              - step:
                   type: Run
-                  name: save_semgrep_report
-                  identifier: save_semgrep_report
+                  name: Semgrep Scan
+                  identifier: semgrep_scan
                   spec:
                     connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Sh
-                    command: |-
-                      # Check if semgrep-report.json exists and copy it to scan_report.json
-                      if [ -f semgrep-report.json ]; then
-                        echo "Copying semgrep-report.json to scan_report.json"
-                        cp semgrep-report.json scan_report.json
-                        echo "File copied successfully"
-                      else
-                        echo "Warning: semgrep-report.json file not found"
-                        echo "{}" > scan_report.json
-                        echo "Created empty scan_report.json file"
-                      fi
-                  timeout: 10m
-                  rollbackSteps: []
-              - step:
-                  identifier: upload_scan_report
-                  name: Upload Scan Report to Nexus
-                  type: Run
-                  timeout: 10m
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: curlimages/curl:latest
+                    image: returntocorp/semgrep:latest
                     shell: Sh
                     command: |
-                      echo "Uploading scan_report.json to Nexus Raw repository..."
+                      echo "Running Semgrep scan..."
 
-                      curl -v \
-                      -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
-                      --upload-file scan_report.json \
-                      "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json"
+                      semgrep scan \
+                        --config=p/ci \
+                        --json --output semgrep-results.json \
+                        --sarif --output semgrep-results.sarif
 
-                      echo "Scan report uploaded successfully!"
-                    envVariables:
-                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
-                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
-            rollbackSteps: []
+                      echo "Listing scan output:"
+                      ls -l
+                    outputVariables:
+                      - name: SCAN_DIR
+                        type: String
+                        value: ./
+              - step:
+                  type: Run
+                  name: Upload Report to Nexus
+                  identifier: upload_nexus
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: curlimages/curl
+                    shell: Sh
+                    command: |
+                      echo "Searching for Semgrep SARIF report..."
+
+                      REPORT=""
+
+                      # Search in workspace & common locations
+                      for f in \
+                        semgrep-results.sarif \
+                        /harness/*.sarif \
+                        /workspace/*.sarif \
+                        /tmp/*.sarif \
+                        /harness/sei-scan-output/*.sarif \
+                      ; do
+                        if [ -f "$f" ]; then
+                          REPORT="$f"
+                          break
+                        fi
+                      done
+
+                      if [ -z "$REPORT" ]; then
+                        echo "❌ No SARIF report found anywhere."
+                        echo "Searching system-wide for debugging:"
+                        find / -name "*.sarif" 2>/dev/null
+                        exit 1
+                      fi
+
+                      echo "✔ Found SARIF: $REPORT"
+
+                      # Generate dynamic file name
+                      TS=$(date +%Y%m%d-%H%M%S)
+                      FILENAME="semgrep-report-$TS.sarif"
+
+                      echo "Uploading report to Nexus repository..."
+
+                      curl -v -u "$NEXUS_USER:$NEXUS_PASS" \
+                        --upload-file "$REPORT" \
+                        "$NEXUS_URL/$FILENAME"
+
+                      echo "✔ Upload completed successfully."
+                    environmentVariables:
+                      NEXUS_USER: <+secrets.getValue("nexus_user")>
+                      NEXUS_PASS: <+secrets.getValue("nexus_pass")>
+                      NEXUS_URL: http://nexus.example.com/repository/sto-reports
     - stage:
         name: SCA
         identifier: SCA
