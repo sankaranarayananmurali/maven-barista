@@ -133,8 +133,10 @@ pipeline:
                       report:
                         enabled: true
                         format: json
-                        path: semgrep-report.json
-                        directory: ./
+                        path: /security-reports/semgrep-report.json
+                        directory: /security-reports
+                    outputVariables:
+                      - name: report_path
                   timeout: 10m
               - step:
                   type: Run
@@ -147,24 +149,42 @@ pipeline:
                     command: |
                       echo "Uploading Semgrep JSON to Nexus..."
 
+                      # Check if report exists and is not empty
                       if [ ! -f semgrep-report.json ]; then
-                        echo "Report not found!"
+                        echo "ERROR: Report file not found!"
                         exit 1
                       fi
 
+                      if [ ! -s semgrep-report.json ]; then
+                        echo "ERROR: Report file is empty!"
+                        exit 1
+                      fi
+
+                      # Generate timestamp for unique filename
                       TS=$(date +%Y%m%d-%H%M%S)
                       TARGET_NAME="semgrep-report-$TS.json"
 
-                      curl -v \
+                      # Attempt upload with proper error handling
+                      echo "Uploading to $NEXUS_URL/$TARGET_NAME"
+                      UPLOAD_RESULT=$(curl -s -w "%{http_code}" \
                         -u "$NEXUS_USER:$NEXUS_PASS" \
                         --upload-file semgrep-report.json \
-                        "$NEXUS_URL/$TARGET_NAME"
+                        "$NEXUS_URL/$TARGET_NAME")
 
-                      echo "Uploaded: $TARGET_NAME"
+                      HTTP_CODE=${UPLOAD_RESULT: -3}
+                      if [[ $HTTP_CODE -ge 200 && $HTTP_CODE -lt 300 ]]; then
+                        echo "SUCCESS: Uploaded report to $TARGET_NAME"
+                        echo "HTTP Status: $HTTP_CODE"
+                      else
+                        echo "ERROR: Failed to upload report. HTTP Status: $HTTP_CODE"
+                        exit 1
+                      fi
                     envVariables:
                       NEXUS_USER: <+pipeline.variables.nexus_username>
                       NEXUS_PASS: <+secrets.getValue("nexus_password")>
                       NEXUS_URL: http://10.10.10.20:8081/repository/sto-reports
+                    timeout: 10m
+            rollbackSteps: []
           rollbackSteps: []
         delegateSelectors:
           - docker-delegate
@@ -318,3 +338,4 @@ pipeline:
                       Build is approved!
                   timeout: 10m
           rollbackSteps: []
+  description: This pipeline was updated by Harness AI on 2025-12-10 12:29:56 UTC by sankaranarayanan.m.
