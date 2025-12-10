@@ -169,15 +169,6 @@ pipeline:
                           - AllErrors
                         action:
                           type: MarkAsFailure
-                    - onFailure:
-                        errors:
-                          - Timeout
-                        action:
-                          type: Retry
-                          spec:
-                            retryCount: 2
-                            retryIntervals:
-                              - 1m
                   timeout: 10m
               - step:
                   identifier: upload_scan_report
