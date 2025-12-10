@@ -193,9 +193,8 @@ pipeline:
                     connectorRef: account.harnessImage
                     image: alpine:3.18
                     shell: Sh
-                    command: |-
-                      # Update CA certificates first
-                      apk update
+                    command: |
+                      # Install ca-certificates without updating apk first
                       apk add --no-cache ca-certificates
                       update-ca-certificates
 
@@ -300,4 +299,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 06:05:45 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 06:14:10 UTC by sankaranarayanan.m.
