@@ -164,27 +164,6 @@ pipeline:
                           type: MarkAsFailure
                   timeout: 10m
               - step:
-                  type: Run
-                  name: save_semgrep_report
-                  identifier: save_semgrep_report
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Sh
-                    command: |-
-                      # Check if semgrep-report.json exists and copy it to scan_report.json
-                      if [ -f semgrep-report.json ]; then
-                        echo "Copying semgrep-report.json to scan_report.json"
-                        cp semgrep-report.json scan_report.json
-                        echo "File copied successfully"
-                      else
-                        echo "Warning: semgrep-report.json file not found"
-                        echo "{}" > scan_report.json
-                        echo "Created empty scan_report.json file"
-                      fi
-                  timeout: 10m
-                  rollbackSteps: []
-              - step:
                   identifier: upload_scan_report
                   name: Upload Scan Report to Nexus
                   type: Run
@@ -194,11 +173,11 @@ pipeline:
                     image: curlimages/curl:latest
                     shell: Sh
                     command: |
-                      echo "Uploading scan_report.json to Nexus Raw repository..."
+                      echo "Uploading semgrep-report.json directly to Nexus Raw repository..."
 
                       curl -v \
                       -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
-                      --upload-file scan_report.json \
+                      --upload-file semgrep-report.json \
                       "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json"
 
                       echo "Scan report uploaded successfully!"
@@ -327,4 +306,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 07:06:40 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 07:15:37 UTC by sankaranarayanan.m.
