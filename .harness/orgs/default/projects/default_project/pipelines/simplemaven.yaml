@@ -158,6 +158,7 @@ pipeline:
                       - name: high_findings
                       - name: medium_findings
                       - name: low_findings
+                      - name: upload_status
                     settings:
                       report:
                         enabled: true
@@ -165,6 +166,25 @@ pipeline:
                         path: semgrep-report.json
                         directory: /shared
                         verbose: true
+                      post_scan:
+                        command: |
+                          # Upload the semgrep report to Nexus
+                          curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
+                          --upload-file "/shared/semgrep-report.json" \
+                          "${NEXUS_URL}/repository/raw-reports/scan-reports/com.example/maven-app/semgrep-report.json"
+
+                          # Check if upload was successful
+                          if [ $? -eq 0 ]; then
+                            echo "Semgrep report uploaded successfully to Nexus"
+                            export UPLOAD_STATUS="success"
+                          else
+                            echo "Failed to upload Semgrep report to Nexus"
+                            export UPLOAD_STATUS="failed"
+                          fi
+                    envVariables:
+                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
+                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+                      NEXUS_URL: <+pipeline.variables.nexus_url>
                   failureStrategies:
                     - onFailure:
                         errors:
@@ -172,70 +192,6 @@ pipeline:
                         action:
                           type: MarkAsFailure
                   timeout: 10m
-              - step:
-                  identifier: upload_scan_report
-                  name: Upload Scan Report to Nexus
-                  type: Run
-                  timeout: 10m
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: curlimages/curl:latest
-                    shell: Sh
-                    command: |
-                      echo "Uploading semgrep-report.json to Nexus Raw repository..."
-
-                      # Debug: List current directory contents
-                      echo "Current directory contents:"
-                      ls -la
-
-                      # Debug: Check shared paths
-                      echo "Checking shared paths:"
-                      ls -la /shared
-
-                      # Look for the report in the shared location
-                      REPORT_PATH="/shared/reports/semgrep-report.json"
-                      if [ ! -f "$REPORT_PATH" ]; then
-                        echo "Report not found in shared directory, checking other locations..."
-                        REPORT_PATH="./semgrep-report.json"
-                        if [ ! -f "$REPORT_PATH" ]; then
-                          echo "Report not found in current directory, checking harness path..."
-                          REPORT_PATH="/harness/semgrep-report.json"
-                          if [ ! -f "$REPORT_PATH" ]; then
-                            echo "Error: semgrep-report.json file not found in any location!"
-                            exit 1
-                          fi
-                        fi
-                      fi
-
-                      echo "Found report at: $REPORT_PATH"
-
-                      # Validate JSON format
-                      if ! jq empty "$REPORT_PATH" 2>/dev/null; then
-                        echo "Error: $REPORT_PATH is not a valid JSON file!"
-                        exit 1
-                      fi
-
-                      # Upload to Nexus
-                      echo "Uploading report to Nexus from $REPORT_PATH"
-                      HTTP_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/curl_response \
-                      -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
-                      --upload-file "$REPORT_PATH" \
-                      "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json")
-
-                      # Check HTTP response code
-                      if [ "$HTTP_RESPONSE" -lt 200 ] || [ "$HTTP_RESPONSE" -ge 300 ]; then
-                        echo "Error: Failed to upload scan report to Nexus! HTTP Status: $HTTP_RESPONSE"
-                        cat /tmp/curl_response
-                        exit 1
-                      fi
-
-                      echo "Scan report uploaded successfully!"
-                      export UPLOAD_STATUS="success"
-                    envVariables:
-                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
-                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
-                    outputVariables:
-                      - name: UPLOAD_STATUS
             rollbackSteps: []
     - stage:
         name: SCA_Scan
@@ -384,4 +340,4 @@ pipeline:
                       This is an automated notification from Harness CI/CD.
                   timeout: 10m
             rollbackSteps: []
-  description: This pipeline was updated by Harness AI on 2025-12-10 08:08:47 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 08:16:38 UTC by sankaranarayanan.m.
