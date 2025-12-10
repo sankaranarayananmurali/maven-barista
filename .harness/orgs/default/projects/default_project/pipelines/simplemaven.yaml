@@ -182,7 +182,30 @@ pipeline:
                         echo "Created empty scan_report.json file"
                       fi
                   timeout: 10m
-            rollbackSteps: []
+                  rollbackSteps: []
+              - step:
+                  identifier: upload_scan_report
+                  name: Upload Scan Report to Nexus
+                  type: Run
+                  timeout: 10m
+                  spec:
+                    connectorRef: account.harnessImage
+                  image: alpine
+                  shell: Bash
+                  command: |
+                    # Install curl
+                    apk add --no-cache curl
+
+                    # Upload scan_report.json to Nexus raw repository
+                    curl -v \
+                    -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
+                    --upload-file scan_report.json \
+                    "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json"
+
+                    echo "Scan report uploaded successfully to Nexus"
+                  envVariables:
+                    NEXUS_USERNAME: <+pipeline.variables.nexus_username>
+                    NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
     - stage:
         name: Build_image
         identifier: Build_image
