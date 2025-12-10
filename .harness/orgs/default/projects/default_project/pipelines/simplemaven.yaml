@@ -147,8 +147,8 @@ pipeline:
                     command: |
                       echo "=== Running Semgrep scan ==="
 
-                      # Install ca-certificates package and update certificate store
-                      apk add --no-cache ca-certificates
+                      # Install ca-certificates package, jq, and update certificate store
+                      apk add --no-cache ca-certificates jq
                       update-ca-certificates
 
                       # Run Semgrep scan and output to JSON format
@@ -369,7 +369,7 @@ pipeline:
                       - Execution URL: <+pipeline.executionUrl>
 
                       Scan Results:
-                      - Semgrep Findings: <+pipeline.stages.Scan.spec.execution.steps.Semgrep_scan.output.outputVariables.semgrep_findings>
+                      - Semgrep Findings: <+pipeline.stages.Scan.spec.execution.steps.Semgrep_and_Upload.output.outputVariables.TOTAL_FINDINGS>
                       - OWASP SCA Scan Completed: <+pipeline.stages.SCA_Scan.status>
 
                       Artifact Information:
@@ -379,4 +379,4 @@ pipeline:
                       This is an automated notification from Harness CI/CD.
                   timeout: 10m
             rollbackSteps: []
-  description: This pipeline was updated by Harness AI on 2025-12-10 09:47:40 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 09:56:51 UTC by sankaranarayanan.m.
