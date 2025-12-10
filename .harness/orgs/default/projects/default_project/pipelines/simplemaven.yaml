@@ -31,10 +31,7 @@ pipeline:
     - stage:
         name: mvn-build
         identifier: mvnbuild
-        description: Maven build
         type: CI
-        delegateSelectors:
-          - docker-delegate
         spec:
           cloneCodebase: true
           caching:
@@ -61,12 +58,10 @@ pipeline:
                     shell: Sh
                     command: |
                       mkdir -p ~/.m2
+
                       cat > ~/.m2/settings.xml << EOF
                       <?xml version="1.0" encoding="UTF-8"?>
-                      <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                                xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-                                http://maven.apache.org/xsd/settings-1.0.0.xsd">
+                      <settings>
                         <servers>
                           <server>
                             <id>nexus-releases</id>
@@ -91,8 +86,8 @@ pipeline:
                       mvn clean deploy
 
                       export MAVEN_VERSION=${DYNAMIC_VERSION}
-                      ARTIFACT_PATH=$(find ./target -name "*.jar" -o -name "*.war" | head -1)
-                      echo "Found artifact at: ${ARTIFACT_PATH}"
+                      ARTIFACT_PATH=$(find ./target -name "*.jar" | head -1)
+                      echo "Found artifact: ${ARTIFACT_PATH}"
                       export ARTIFACT_PATH=${ARTIFACT_PATH}
                     envVariables:
                       NEXUS_USERNAME: <+pipeline.variables.nexus_username>
@@ -101,90 +96,153 @@ pipeline:
                       - name: MAVEN_VERSION
                       - name: ARTIFACT_PATH
                   timeout: 10m
-    - stage:
-        name: Scan
-        identifier: Scan
-        description: Semgrep scan
-        type: CI
+          rollbackSteps: []
         delegateSelectors:
           - docker-delegate
+    - stage:
+        name: Security Scan
+        identifier: security_scan
+        type: CI
         spec:
           cloneCodebase: true
-          caching:
-            enabled: true
-            override: true
-          buildIntelligence:
-            enabled: true
           platform:
             os: Linux
             arch: Amd64
           runtime:
             type: Docker
-            spec:
-              harnessImageConnectorRef: dockerhub
+            spec: {}
           execution:
             steps:
               - step:
                   type: Semgrep
-                  name: Semgrep_scan
-                  identifier: Semgrep_scan
+                  name: Semgrep Scan
+                  identifier: semgrep_scan
                   spec:
                     mode: orchestration
                     config: default
                     target:
                       type: repository
                       workspace: .
-                      detection: auto
+                      detection: manual
+                      name: maven-barista
+                      variant: master
                     advanced:
                       log:
                         level: info
-                      fail_on_severity: critical
-                    outputVariables:
-                      - name: semgrep_findings
                     settings:
                       report:
                         enabled: true
-                        format: json
-                        path: semgrep-report.json
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: MarkAsFailure
+                        format: sarif
+                        path: /security-reports/semgrep-report.sarif
+                        directory: /security-reports
+                    outputVariables:
+                      - name: report_path
                   timeout: 10m
               - step:
                   type: Run
-                  name: save_semgrep_report
-                  identifier: save_semgrep_report
+                  name: Process and Upload SARIF Report
+                  identifier: process_upload_sarif
                   spec:
-                    connectorRef: dockerhub
+                    connectorRef: account.harnessImage
                     image: alpine
                     shell: Sh
-                    command: |-
-                      if [ -f semgrep-report.json ]; then
-                        cp semgrep-report.json scan_report.json
-                      else
-                        echo "{}" > scan_report.json
+                    command: |
+                      # Update certificates and install required tools
+                      apk add --no-cache ca-certificates
+                      apk update
+                      apk add --no-cache curl jq findutils
+
+                      # Define possible SARIF file locations to search
+                      echo "Searching for SARIF files..."
+                      SARIF_FILE=$(find / -name "*.sarif" -type f 2>/dev/null | head -1)
+
+                      if [ -z "$SARIF_FILE" ]; then
+                        echo "No SARIF file found, checking for JSON reports instead..."
+                        SARIF_FILE=$(find / -name "semgrep-report.json" -type f 2>/dev/null | head -1)
                       fi
+
+                      if [ -z "$SARIF_FILE" ]; then
+                        echo "ERROR: No SARIF or Semgrep report files found"
+                        exit 1
+                      fi
+
+                      echo "Found report file: $SARIF_FILE"
+
+                      # Create directory for processed files
+                      mkdir -p /tmp/security-reports
+
+                      # Validate and process the file
+                      if jq empty "$SARIF_FILE" 2>/dev/null; then
+                        echo "File is valid JSON, processing..."
+                        cp "$SARIF_FILE" /tmp/security-reports/semgrep-report.json
+                      else
+                        echo "File is not valid JSON, cannot process"
+                        exit 1
+                      fi
+
+                      # Generate timestamp for unique filename
+                      TS=$(date +%Y%m%d-%H%M%S)
+                      TARGET_NAME="semgrep-report-$TS.json"
+
+                      # Upload to Nexus
+                      echo "Uploading report to Nexus as $TARGET_NAME"
+                      HTTP_CODE=$(curl -s -w "%{http_code}" \
+                        -u "$NEXUS_USER:$NEXUS_PASS" \
+                        --upload-file /tmp/security-reports/semgrep-report.json \
+                        "$NEXUS_URL/$TARGET_NAME")
+
+                      if [[ $HTTP_CODE -ge 200 && $HTTP_CODE -lt 300 ]]; then
+                        echo "SUCCESS: Uploaded report to $TARGET_NAME"
+                        echo "HTTP Status: $HTTP_CODE"
+                        export REPORT_PATH="/tmp/security-reports/semgrep-report.json"
+                        export UPLOADED_REPORT_NAME="$TARGET_NAME"
+                      else
+                        echo "ERROR: Failed to upload report. HTTP Status: $HTTP_CODE"
+                        exit 1
+                      fi
+                    envVariables:
+                      NEXUS_USER: <+pipeline.variables.nexus_username>
+                      NEXUS_PASS: <+secrets.getValue("nexus_password")>
+                      NEXUS_URL: http://10.10.10.20:8081/repository/sto-reports
+                    outputVariables:
+                      - name: REPORT_PATH
+                        type: String
+                        value: REPORT_PATH
+                      - name: UPLOADED_REPORT_NAME
+                        type: String
+                        value: UPLOADED_REPORT_NAME
                   timeout: 10m
               - step:
                   type: Run
-                  name: upload_scan_report
-                  identifier: upload_scan_report
+                  name: Debug SARIF Files
+                  identifier: debug_sarif
                   spec:
-                    connectorRef: dockerhub
-                    image: curlimages/curl:latest
-                    shell: Sh
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Bash
                     command: |
-                      curl -v \
-                      -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
-                      --upload-file scan_report.json \
-                      "${NEXUS_URL}repository/raw-reports/scan-reports/${MAVEN_GROUP_ID}/${MAVEN_ARTIFACT_ID}/scan_report.json"
-                    envVariables:
-                      NEXUS_URL: <+pipeline.variables.nexus_url>
-                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
-                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+                      echo "=== Searching for SARIF files ==="
+                      find / -name "*.sarif" -type f 2>/dev/null || echo "No SARIF files found"
+
+                      echo "=== Searching for JSON report files ==="
+                      find / -name "semgrep-report.json" -type f 2>/dev/null || echo "No semgrep-report.json files found"
+
+                      echo "=== Contents of /security-reports ==="
+                      ls -la /security-reports/ 2>/dev/null || echo "/security-reports not found"
+
+                      echo "=== Contents of /harness ==="
+                      ls -la /harness/ 2>/dev/null || echo "/harness not found"
+
+                      echo "=== Contents of current directory ==="
+                      ls -la .
+
+                      echo "=== File types in current directory ==="
+                      find . -type f -exec file {} \; | grep -i "json\|sarif"
+                    timeout: 10m
+            rollbackSteps: []
+          rollbackSteps: []
+        delegateSelectors:
+          - docker-delegate
     - stage:
         name: Build_image
         identifier: Build_image
@@ -218,6 +276,8 @@ pipeline:
                       - <+pipeline.sequenceId>
                     dockerfile: Dockerfile
                     context: .
+                  timeout: 10m
+          rollbackSteps: []
     - stage:
         name: Build Approval
         identifier: Build_Approval
@@ -252,4 +312,4 @@ pipeline:
                       Build is approved!
                   timeout: 10m
           rollbackSteps: []
-  description: This pipeline was updated by Harness AI on 2025-12-10 12:52:01 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 14:02:23 UTC by sankaranarayanan.m.
