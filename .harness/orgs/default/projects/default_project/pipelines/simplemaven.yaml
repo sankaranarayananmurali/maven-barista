@@ -204,7 +204,7 @@ pipeline:
 
                       # Upload scan_report.json to Nexus raw repository
                       curl -v \
-                      -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
+                      -u "${nexus_username}:${nexus_password}" \
                       --upload-file scan_report.json \
                       "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json"
 
