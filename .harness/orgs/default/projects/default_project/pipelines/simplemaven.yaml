@@ -138,7 +138,7 @@ pipeline:
                     advanced:
                       log:
                         level: debug
-                      fail_on_severity: high
+                      fail_on_severity: critical
                     settings:
                       report:
                         enabled: true
@@ -148,9 +148,6 @@ pipeline:
                       verbose: true
                       failOnError: false
                       retryOnFailure: true
-                    outputVariables:
-                      - name: semgrep_findings
-                      - name: report_path
                   failureStrategies:
                     - onFailure:
                         errors:
