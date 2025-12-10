@@ -156,12 +156,34 @@ pipeline:
                         enabled: true
                         format: json
                         path: semgrep-report.json
+                        directory: ./
+                        verbose: true
                   failureStrategies:
                     - onFailure:
                         errors:
                           - AllErrors
                         action:
                           type: MarkAsFailure
+                  timeout: 10m
+              - step:
+                  type: Run
+                  name: verify_report_exists
+                  identifier: verify_report_exists
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Sh
+                    command: |
+                      # Check if semgrep-report.json exists
+                      if [ -f "semgrep-report.json" ]; then
+                        echo "semgrep-report.json file exists, proceeding with upload"
+                        export REPORT_EXISTS="true"
+                      else
+                        echo "semgrep-report.json file does not exist, upload will be skipped"
+                        export REPORT_EXISTS="false"
+                      fi
+                    outputVariables:
+                      - name: REPORT_EXISTS
                   timeout: 10m
               - step:
                   identifier: upload_scan_report
@@ -306,4 +328,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 07:15:37 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 07:20:17 UTC by sankaranarayanan.m.
