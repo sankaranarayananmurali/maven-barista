@@ -151,6 +151,11 @@ pipeline:
                       fail_on_severity: critical
                     outputVariables:
                       - name: semgrep_findings
+                      - name: total_findings
+                      - name: critical_findings
+                      - name: high_findings
+                      - name: medium_findings
+                      - name: low_findings
                     settings:
                       report:
                         enabled: true
@@ -164,35 +169,21 @@ pipeline:
                           - AllErrors
                         action:
                           type: MarkAsFailure
-                  timeout: 10m
-              - step:
-                  type: Run
-                  name: verify_report_exists
-                  identifier: verify_report_exists
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Sh
-                    command: |
-                      # Check if semgrep-report.json exists
-                      if [ -f "semgrep-report.json" ]; then
-                        echo "semgrep-report.json file exists, proceeding with upload"
-                        export REPORT_EXISTS="true"
-                      else
-                        echo "semgrep-report.json file does not exist, upload will be skipped"
-                        export REPORT_EXISTS="false"
-                      fi
-                    outputVariables:
-                      - name: REPORT_EXISTS
+                    - onFailure:
+                        errors:
+                          - Timeout
+                        action:
+                          type: Retry
+                          spec:
+                            retryCount: 2
+                            retryIntervals:
+                              - 1m
                   timeout: 10m
               - step:
                   identifier: upload_scan_report
                   name: Upload Scan Report to Nexus
                   type: Run
                   timeout: 10m
-                  when:
-                    condition: <+execution.steps.verify_report_exists.output.outputVariables.REPORT_EXISTS> == "true"
-                    stageStatus: Success
                   spec:
                     connectorRef: account.harnessImage
                     image: curlimages/curl:latest
@@ -200,25 +191,38 @@ pipeline:
                     command: |
                       echo "Uploading semgrep-report.json directly to Nexus Raw repository..."
 
+                      # Check if report exists and validate it
                       if [ ! -f "semgrep-report.json" ]; then
                         echo "Error: semgrep-report.json file not found!"
                         exit 1
                       fi
 
-                      curl -v \
+                      # Validate JSON format
+                      if ! jq empty semgrep-report.json 2>/dev/null; then
+                        echo "Error: semgrep-report.json is not a valid JSON file!"
+                        exit 1
+                      fi
+
+                      # Upload to Nexus
+                      HTTP_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/curl_response \
                       -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
                       --upload-file semgrep-report.json \
-                      "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json"
+                      "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json")
 
-                      if [ $? -ne 0 ]; then
-                        echo "Error: Failed to upload scan report to Nexus!"
+                      # Check HTTP response code
+                      if [ "$HTTP_RESPONSE" -lt 200 ] || [ "$HTTP_RESPONSE" -ge 300 ]; then
+                        echo "Error: Failed to upload scan report to Nexus! HTTP Status: $HTTP_RESPONSE"
+                        cat /tmp/curl_response
                         exit 1
                       fi
 
                       echo "Scan report uploaded successfully!"
+                      export UPLOAD_STATUS="success"
                     envVariables:
                       NEXUS_USERNAME: <+pipeline.variables.nexus_username>
                       NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+                    outputVariables:
+                      - name: UPLOAD_STATUS
             rollbackSteps: []
     - stage:
         name: SCA_Scan
@@ -318,8 +322,18 @@ pipeline:
                   timeout: 1d
                   spec:
                     approvalMessage: |-
-                      Please review the following information
-                      and approve the pipeline progression
+                      Please review the following information and approve the pipeline progression
+
+                      SCAN RESULTS SUMMARY:
+                      - Security scan completed with Semgrep
+                      - Scan reports uploaded to Nexus repository
+                      - OWASP dependency check completed
+
+                      ARTIFACT DETAILS:
+                      - Docker image: sankaranarayananmurali/maven-v1:<+pipeline.sequenceId>
+                      - Maven artifact: <+pipeline.variables.maven_group_id>:<+pipeline.variables.maven_artifact_id>:<+pipeline.variables.maven_version>
+
+                      Please verify these artifacts before approving deployment.
                     includePipelineExecutionHistory: true
                     approvers:
                       minimumCount: 1
@@ -337,8 +351,24 @@ pipeline:
                     subject: Build Approved
                     body: |-
                       Hi,
-                      Build is approved!
+
+                      Build has been approved successfully!
+
+                      Build Details:
+                      - Pipeline: <+pipeline.name>
+                      - Build Number: <+pipeline.sequenceId>
+                      - Triggered By: <+pipeline.triggeredBy.name>
+                      - Execution URL: <+pipeline.executionUrl>
+
+                      Scan Results:
+                      - Semgrep Findings: <+pipeline.stages.Scan.spec.execution.steps.Semgrep_scan.output.outputVariables.semgrep_findings>
+                      - OWASP SCA Scan Completed: <+pipeline.stages.SCA_Scan.status>
+
+                      Artifact Information:
+                      - Maven Version: <+pipeline.stages.mvnbuild.spec.execution.steps.maven_build.output.outputVariables.MAVEN_VERSION>
+                      - Docker Image: sankaranarayananmurali/maven-v1:<+pipeline.sequenceId>
+
+                      This is an automated notification from Harness CI/CD.
                   timeout: 10m
             rollbackSteps: []
-        tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 07:25:16 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 07:45:34 UTC by sankaranarayanan.m.
