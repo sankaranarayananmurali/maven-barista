@@ -137,61 +137,83 @@ pipeline:
           execution:
             steps:
               - step:
-                  type: Semgrep
-                  name: Semgrep_scan
-                  identifier: Semgrep_scan
+                  name: Semgrep_and_Upload
+                  identifier: Semgrep_and_Upload
+                  type: Run
                   spec:
-                    mode: ingestion
-                    config: default
-                    target:
-                      type: repository
-                      workspace: .
-                      detection: auto
-                    advanced:
-                      log:
-                        level: info
-                      fail_on_severity: critical
-                    outputVariables:
-                      - name: semgrep_findings
-                      - name: total_findings
-                      - name: critical_findings
-                      - name: high_findings
-                      - name: medium_findings
-                      - name: low_findings
-                      - name: upload_status
-                    settings:
-                      report:
-                        enabled: true
-                        format: json
-                        path: semgrep-report.json
-                        directory: .
-                        verbose: true
-                      post_scan:
-                        command: |
-                          cp /tmp/output.sarif semgrep-report.json
-                          # Upload the semgrep report to Nexus
-                          curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
-                          --upload-file "/shared/semgrep-report.json" \
-                          "${NEXUS_URL}/repository/raw-reports/scan-reports/com.example/maven-app/semgrep-report.json"
+                    connectorRef: account.harnessImage
+                    image: returntocorp/semgrep:latest
+                    shell: Bash
+                    command: |
+                      echo "=== Running Semgrep scan ==="
 
-                          # Check if upload was successful
-                          if [ $? -eq 0 ]; then
-                            echo "Semgrep report uploaded successfully to Nexus"
-                            export UPLOAD_STATUS="success"
-                          else
-                            echo "Failed to upload Semgrep report to Nexus"
-                            export UPLOAD_STATUS="failed"
-                          fi
+                      # Run Semgrep scan and output to JSON format
+                      semgrep scan \
+                        --config=auto \
+                        --json \
+                        --output=semgrep-report.json \
+                        .
+
+                      # Store scan exit code
+                      SCAN_EXIT_CODE=$?
+
+                      # Check if report was generated
+                      if [ ! -f "semgrep-report.json" ]; then
+                        echo "ERROR: semgrep-report.json file NOT generated!"
+                        exit 1
+                      fi
+
+                      echo "Report generated:"
+                      ls -lh semgrep-report.json
+
+                      # Extract findings counts for output variables
+                      TOTAL_FINDINGS=$(jq '.results | length' semgrep-report.json)
+                      CRITICAL_FINDINGS=$(jq '.results | map(select(.extra.severity == "ERROR")) | length' semgrep-report.json)
+                      HIGH_FINDINGS=$(jq '.results | map(select(.extra.severity == "WARNING")) | length' semgrep-report.json)
+                      MEDIUM_FINDINGS=$(jq '.results | map(select(.extra.severity == "INFO")) | length' semgrep-report.json)
+                      LOW_FINDINGS=$(jq '.results | map(select(.extra.severity == "NONE")) | length' semgrep-report.json)
+
+                      # Export findings as output variables
+                      export TOTAL_FINDINGS="$TOTAL_FINDINGS"
+                      export CRITICAL_FINDINGS="$CRITICAL_FINDINGS"
+                      export HIGH_FINDINGS="$HIGH_FINDINGS"
+                      export MEDIUM_FINDINGS="$MEDIUM_FINDINGS"
+                      export LOW_FINDINGS="$LOW_FINDINGS"
+
+                      echo "=== Uploading to Nexus ==="
+
+                      # Upload report to Nexus
+                      HTTP_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/curl_response \
+                        -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
+                        --upload-file semgrep-report.json \
+                        "${NEXUS_URL}/repository/raw-reports/scan-reports/${MAVEN_GROUP_ID}/${MAVEN_ARTIFACT_ID}/semgrep-report.json")
+
+                      # Check upload status
+                      if [ "$HTTP_RESPONSE" -lt 200 ] || [ "$HTTP_RESPONSE" -ge 300 ]; then
+                        echo "Upload FAILED. HTTP $HTTP_RESPONSE"
+                        cat /tmp/curl_response
+                        export UPLOAD_STATUS="failed"
+                        exit 1
+                      else
+                        echo "Upload successful!"
+                        export UPLOAD_STATUS="success"
+                      fi
+
+                      # Return original scan exit code
+                      exit $SCAN_EXIT_CODE
                     envVariables:
                       NEXUS_USERNAME: <+pipeline.variables.nexus_username>
                       NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
                       NEXUS_URL: <+pipeline.variables.nexus_url>
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: MarkAsFailure
+                      MAVEN_GROUP_ID: <+pipeline.variables.maven_group_id>
+                      MAVEN_ARTIFACT_ID: <+pipeline.variables.maven_artifact_id>
+                    outputVariables:
+                      - name: TOTAL_FINDINGS
+                      - name: CRITICAL_FINDINGS
+                      - name: HIGH_FINDINGS
+                      - name: MEDIUM_FINDINGS
+                      - name: LOW_FINDINGS
+                      - name: UPLOAD_STATUS
                   timeout: 10m
             rollbackSteps: []
     - stage:
@@ -341,4 +363,4 @@ pipeline:
                       This is an automated notification from Harness CI/CD.
                   timeout: 10m
             rollbackSteps: []
-  description: This pipeline was updated by Harness AI on 2025-12-10 08:16:38 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 08:34:35 UTC by sankaranarayanan.m.
