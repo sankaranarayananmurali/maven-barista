@@ -227,44 +227,6 @@ pipeline:
           execution:
             steps:
               - step:
-                  type: Run
-                  name: install_ruby
-                  identifier: install_ruby
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Sh
-                    command: |-
-                      # Install dependencies needed for Ruby installation
-                      apk add --update --no-cache \
-                        build-base \
-                        libffi-dev \
-                        openssl-dev \
-                        readline-dev \
-                        zlib-dev \
-                        yaml-dev \
-                        wget \
-                        curl
-
-                      # Download and install Ruby 3.2.2
-                      wget https://cache.ruby-lang.org/pub/ruby/3.2/ruby-3.2.2.tar.gz
-                      tar -xzf ruby-3.2.2.tar.gz
-                      cd ruby-3.2.2
-                      ./configure
-                      make
-                      make install
-
-                      # Verify installation
-                      ruby -v
-
-                      # Export Ruby installation status
-                      export RUBY_INSTALLED="true"
-                    outputVariables:
-                      - name: RUBY_INSTALLED
-                        type: String
-                        value: RUBY_INSTALLED
-                  timeout: 10m
-              - step:
                   type: Owasp
                   name: Owasp_1
                   identifier: Owasp_1
@@ -277,11 +239,11 @@ pipeline:
                       detection: auto
                     advanced:
                       log:
-                        level: debug
+                        level: info
                         serializer: simple
                       fail_on_severity: high
                       args:
-                        cli: "--network-timeout 60 --retries 3"
+                        cli: "--network-timeout 120 --retries 5 --scan-timeout 1800"
                     outputVariables:
                       - name: scan_status
                       - name: vulnerability_count
@@ -290,8 +252,14 @@ pipeline:
                         proxy_host: <+env.HTTP_PROXY_HOST>
                         proxy_port: <+env.HTTP_PROXY_PORT>
                         no_proxy: <+env.NO_PROXY>
-                        timeout: 120
-                  timeout: 20m
+                        timeout: 180
+                      cache:
+                        enabled: true
+                        ttl: 24h
+                      parallel:
+                        enabled: true
+                        threads: 4
+                  timeout: 30m
                   failureStrategies:
                     - onFailure:
                         errors:
@@ -321,6 +289,75 @@ pipeline:
                             onRetryFailure:
                               action:
                                 type: MarkAsFailure
+              - step:
+                  type: Run
+                  name: save_owasp_report
+                  identifier: save_owasp_report
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Bash
+                    command: |
+                      # Check if OWASP Dependency Check report exists and save it for uploading to Nexus
+                      if [ -f dependency-check-report.xml ]; then
+                        echo "Copying dependency-check-report.xml to owasp_report.xml"
+                        cp dependency-check-report.xml owasp_report.xml
+                        echo "File copied successfully"
+                      else
+                        echo "Warning: dependency-check-report.xml file not found"
+                        echo "Checking for other report formats..."
+                        
+                        # Check for JSON format
+                        if [ -f dependency-check-report.json ]; then
+                          echo "Found JSON report, copying to owasp_report.json"
+                          cp dependency-check-report.json owasp_report.json
+                        else
+                          echo "No OWASP Dependency Check reports found"
+                          echo "{}" > owasp_report.json
+                          echo "Created empty owasp_report.json file"
+                        fi
+                      fi
+
+                      # List all report files for debugging
+                      echo "Available report files:"
+                      find . -name "dependency-check*" -type f
+                    outputVariables:
+                      - name: OWASP_REPORT_SAVED
+                  timeout: 10m
+              - step:
+                  type: Run
+                  name: upload_owasp_report
+                  identifier: upload_owasp_report
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Bash
+                    command: |
+                      # Install curl
+                      apk add --no-cache curl
+
+                      # Check if dependency-check-report.xml exists
+                      if [ -f dependency-check-report.xml ]; then
+                        echo "Found OWASP Dependency Check report, uploading to Nexus..."
+                        
+                        # Upload the report to Nexus Raw repository
+                        curl -v \
+                        -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
+                        --upload-file dependency-check-report.xml \
+                        "${NEXUS_URL}repository/raw-reports/owasp-reports/${MAVEN_GROUP_ID}/${MAVEN_ARTIFACT_ID}/dependency-check-report.xml"
+                        
+                        echo "OWASP Dependency Check report uploaded successfully!"
+                      else
+                        echo "Warning: dependency-check-report.xml file not found"
+                        exit 1
+                      fi
+                    envVariables:
+                      NEXUS_URL: <+pipeline.variables.nexus_url>
+                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
+                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+                      MAVEN_GROUP_ID: <+pipeline.variables.maven_group_id>
+                      MAVEN_ARTIFACT_ID: <+pipeline.variables.maven_artifact_id>
+                  timeout: 10m
             rollbackSteps: []
         delegateSelectors:
           - docker-delegate
@@ -411,4 +448,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 11:48:46 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 11:59:04 UTC by sankaranarayanan.m.
