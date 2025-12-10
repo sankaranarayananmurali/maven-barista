@@ -132,37 +132,49 @@ pipeline:
                     settings:
                       report:
                         enabled: true
-                        format: json
-                        path: /security-reports/semgrep-report.json
+                        format: sarif
+                        path: /security-reports/semgrep-report.sarif
                         directory: /security-reports
                     outputVariables:
                       - name: report_path
                   timeout: 10m
               - step:
                   type: Run
-                  name: Upload Report to Nexus
-                  identifier: upload_report
+                  name: Process and Upload SARIF Report
+                  identifier: process_upload_sarif
                   spec:
                     connectorRef: account.harnessImage
-                    image: curlimages/curl
-                    shell: Sh
+                    image: alpine
+                    shell: Bash
                     command: |
-                      echo "Uploading Semgrep JSON to Nexus..."
+                      # Install required tools
+                      apk add --no-cache curl jq find
 
-                      # Copy the report from security-reports directory to current directory
-                      if [ -f /security-reports/semgrep-report.json ]; then
-                        echo "Found report in /security-reports directory, copying to current directory"
-                        cp /security-reports/semgrep-report.json ./semgrep-report.json
+                      # Define possible SARIF file locations to search
+                      echo "Searching for SARIF files..."
+                      SARIF_FILE=$(find / -name "*.sarif" -type f 2>/dev/null | head -1)
+
+                      if [ -z "$SARIF_FILE" ]; then
+                        echo "No SARIF file found, checking for JSON reports instead..."
+                        SARIF_FILE=$(find / -name "semgrep-report.json" -type f 2>/dev/null | head -1)
                       fi
 
-                      # Check if report exists and is not empty
-                      if [ ! -f semgrep-report.json ]; then
-                        echo "ERROR: Report file not found!"
+                      if [ -z "$SARIF_FILE" ]; then
+                        echo "ERROR: No SARIF or Semgrep report files found"
                         exit 1
                       fi
 
-                      if [ ! -s semgrep-report.json ]; then
-                        echo "ERROR: Report file is empty!"
+                      echo "Found report file: $SARIF_FILE"
+
+                      # Create directory for processed files
+                      mkdir -p /tmp/security-reports
+
+                      # Validate and process the file
+                      if jq empty "$SARIF_FILE" 2>/dev/null; then
+                        echo "File is valid JSON, processing..."
+                        cp "$SARIF_FILE" /tmp/security-reports/semgrep-report.json
+                      else
+                        echo "File is not valid JSON, cannot process"
                         exit 1
                       fi
 
@@ -170,17 +182,18 @@ pipeline:
                       TS=$(date +%Y%m%d-%H%M%S)
                       TARGET_NAME="semgrep-report-$TS.json"
 
-                      # Attempt upload with proper error handling
-                      echo "Uploading to $NEXUS_URL/$TARGET_NAME"
-                      UPLOAD_RESULT=$(curl -s -w "%{http_code}" \
+                      # Upload to Nexus
+                      echo "Uploading report to Nexus as $TARGET_NAME"
+                      HTTP_CODE=$(curl -s -w "%{http_code}" \
                         -u "$NEXUS_USER:$NEXUS_PASS" \
-                        --upload-file semgrep-report.json \
+                        --upload-file /tmp/security-reports/semgrep-report.json \
                         "$NEXUS_URL/$TARGET_NAME")
 
-                      HTTP_CODE=${UPLOAD_RESULT: -3}
                       if [[ $HTTP_CODE -ge 200 && $HTTP_CODE -lt 300 ]]; then
                         echo "SUCCESS: Uploaded report to $TARGET_NAME"
                         echo "HTTP Status: $HTTP_CODE"
+                        export REPORT_PATH="/tmp/security-reports/semgrep-report.json"
+                        export UPLOADED_REPORT_NAME="$TARGET_NAME"
                       else
                         echo "ERROR: Failed to upload report. HTTP Status: $HTTP_CODE"
                         exit 1
@@ -189,6 +202,36 @@ pipeline:
                       NEXUS_USER: <+pipeline.variables.nexus_username>
                       NEXUS_PASS: <+secrets.getValue("nexus_password")>
                       NEXUS_URL: http://10.10.10.20:8081/repository/sto-reports
+                    outputVariables:
+                      - name: REPORT_PATH
+                      - name: UPLOADED_REPORT_NAME
+                  timeout: 10m
+              - step:
+                  type: Run
+                  name: Debug SARIF Files
+                  identifier: debug_sarif
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Bash
+                    command: |
+                      echo "=== Searching for SARIF files ==="
+                      find / -name "*.sarif" -type f 2>/dev/null || echo "No SARIF files found"
+
+                      echo "=== Searching for JSON report files ==="
+                      find / -name "semgrep-report.json" -type f 2>/dev/null || echo "No semgrep-report.json files found"
+
+                      echo "=== Contents of /security-reports ==="
+                      ls -la /security-reports/ 2>/dev/null || echo "/security-reports not found"
+
+                      echo "=== Contents of /harness ==="
+                      ls -la /harness/ 2>/dev/null || echo "/harness not found"
+
+                      echo "=== Contents of current directory ==="
+                      ls -la .
+
+                      echo "=== File types in current directory ==="
+                      find . -type f -exec file {} \; | grep -i "json\|sarif"
                     timeout: 10m
             rollbackSteps: []
           rollbackSteps: []
@@ -344,4 +387,4 @@ pipeline:
                       Build is approved!
                   timeout: 10m
           rollbackSteps: []
-  description: This pipeline was updated by Harness AI on 2025-12-10 12:36:15 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 12:43:13 UTC by sankaranarayanan.m.
