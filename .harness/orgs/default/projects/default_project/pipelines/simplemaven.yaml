@@ -172,13 +172,13 @@ pipeline:
                     image: alpine
                     shell: Sh
                     command: |-
-                      # Check if semgrep-results.json exists and copy it to scan_report.json
-                      if [ -f semgrep-results.json ]; then
-                        echo "Copying semgrep-results.json to scan_report.json"
-                        cp semgrep-results.json scan_report.json
+                      # Check if semgrep-report.json exists and copy it to scan_report.json
+                      if [ -f semgrep-report.json ]; then
+                        echo "Copying semgrep-report.json to scan_report.json"
+                        cp semgrep-report.json scan_report.json
                         echo "File copied successfully"
                       else
-                        echo "Warning: semgrep-results.json file not found"
+                        echo "Warning: semgrep-report.json file not found"
                         echo "{}" > scan_report.json
                         echo "Created empty scan_report.json file"
                       fi
@@ -206,6 +206,40 @@ pipeline:
                       NEXUS_USERNAME: <+pipeline.variables.nexus_username>
                       NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
             rollbackSteps: []
+    - stage:
+        name: SCA_Scan
+        identifier: SCA_Scan
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Owasp
+                  name: Owasp_1
+                  identifier: Owasp_1
+                  spec:
+                    target:
+                      detection: auto
+                      type: repository
+                    advanced:
+                      log:
+                        level: info
+                      args: {}
+                    mode: orchestration
+                    config: default
     - stage:
         name: Build_image
         identifier: Build_image
@@ -293,4 +327,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 06:25:46 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 07:06:40 UTC by sankaranarayanan.m.
