@@ -137,17 +137,20 @@ pipeline:
                       detection: auto
                     advanced:
                       log:
-                        level: info
-                      fail_on_severity: critical
+                        level: debug
+                      fail_on_severity: high
                     settings:
                       report:
                         enabled: true
                         format: json
                         path: semgrep-report.json
-                        directory: ./
+                        directory: ./reports
                       verbose: true
+                      failOnError: false
+                      retryOnFailure: true
                     outputVariables:
                       - name: semgrep_findings
+                      - name: report_path
                   failureStrategies:
                     - onFailure:
                         errors:
@@ -168,8 +171,15 @@ pipeline:
 
                       if [ -f "semgrep-report.json" ]; then
                         export REPORT_EXISTS="true"
+                        echo "Report found. Checking file details:"
+                        ls -la semgrep-report.json
+                        echo "File size: $(du -h semgrep-report.json | cut -f1)"
+                        echo "File creation time: $(stat -c '%y' semgrep-report.json)"
+                        echo "Number of findings: $(grep -o '"findings":' semgrep-report.json | wc -l)"
                       else
                         export REPORT_EXISTS="false"
+                        echo "Report not found. Checking directory contents:"
+                        ls -la
                       fi
 
                       echo "REPORT_EXISTS=$REPORT_EXISTS"
@@ -188,10 +198,16 @@ pipeline:
                     image: curlimages/curl:latest
                     shell: Sh
                     command: |
-                      echo "Uploading semgrep-report.json..."
+                      echo "Checking for semgrep-report.json..."
 
                       if [ ! -f "semgrep-report.json" ]; then
-                        echo "Report missing!"
+                        echo "ERROR: Report file not found!"
+                        exit 1
+                      fi
+
+                      # Validate file is not empty
+                      if [ ! -s "semgrep-report.json" ]; then
+                        echo "ERROR: Report file exists but is empty!"
                         exit 1
                       fi
 
@@ -200,16 +216,65 @@ pipeline:
                       FILENAME="scan_report_<+pipeline.sequenceId>_${TIMESTAMP}_${MAVEN_VERSION}.json"
                       echo "Using dynamic filename: ${FILENAME}"
 
-                      curl -v \
+                      # Create target directory path for logging
+                      TARGET_PATH="<+pipeline.variables.nexus_url>repository/raw-reports/scan-reports/<+pipeline.variables.maven_group_id>/<+pipeline.variables.maven_artifact_id>/${FILENAME}"
+                      echo "Uploading to: ${TARGET_PATH}"
+
+                      # Attempt upload with proper error handling
+                      HTTP_RESPONSE=$(curl -s -w "%{http_code}" \
                         -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
                         --upload-file semgrep-report.json \
-                        "<+pipeline.variables.nexus_url>repository/raw-reports/scan-reports/<+pipeline.variables.maven_group_id>/<+pipeline.variables.maven_artifact_id>/${FILENAME}"
+                        "${TARGET_PATH}")
 
-                      echo "Uploaded successfully!"
+                      HTTP_STATUS=${HTTP_RESPONSE: -3}
+
+                      if [[ $HTTP_STATUS -ge 200 && $HTTP_STATUS -lt 300 ]]; then
+                        echo "SUCCESS: Report uploaded successfully with status code ${HTTP_STATUS}"
+                      else
+                        echo "ERROR: Failed to upload report. Status code: ${HTTP_STATUS}"
+                        exit 1
+                      fi
                     envVariables:
                       NEXUS_USERNAME: <+pipeline.variables.nexus_username>
                       NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
                       MAVEN_VERSION: <+pipeline.variables.maven_version>
+                  timeout: 10m
+              - step:
+                  type: Run
+                  name: Debug Scan Report
+                  identifier: debug_scan_report
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Bash
+                    command: |
+                      echo "=== Semgrep Scan Debug Information ==="
+                      echo "Checking for semgrep-report.json file..."
+
+                      if [ -f "semgrep-report.json" ]; then
+                        echo "Report file exists. Getting file details:"
+                        ls -la semgrep-report.json
+                        echo "File size: $(du -h semgrep-report.json | cut -f1)"
+                        echo "\nReport summary:"
+                        cat semgrep-report.json | grep -E '"errors":|"results":|"version":' || echo "Could not parse report JSON"
+                        
+                        echo "\nCounting findings by severity:"
+                        grep -o '"severity": "[^"]*"' semgrep-report.json | sort | uniq -c || echo "No severity data found"
+                      else
+                        echo "Report file does not exist. Checking Semgrep process status:"
+                        ps aux | grep semgrep || echo "No semgrep process found"
+                        
+                        echo "\nChecking for any semgrep output in current directory:"
+                        find . -name "*semgrep*" -type f | xargs ls -la 2>/dev/null || echo "No semgrep output files found"
+                      fi
+
+                      echo "\nEnvironment information:"
+                      echo "Working directory: $(pwd)"
+                      echo "Available disk space: $(df -h . | tail -1 | awk '{print $4}')"
+
+                      echo "\nDebug complete."
+                    outputVariables:
+                      - name: DEBUG_COMPLETED
                   timeout: 10m
             rollbackSteps: []
         delegateSelectors:
@@ -300,4 +365,4 @@ pipeline:
                       Maven Version: <+pipeline.stages.mvnbuild.spec.execution.steps.maven_build.output.outputVariables.MAVEN_VERSION>
                       Docker Image: sankaranarayananmurali/maven-v1:<+pipeline.sequenceId>
                   timeout: 10m
-  description: This pipeline was updated by Harness AI on 2025-12-10 10:50:37 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 10:58:42 UTC by sankaranarayanan.m.
