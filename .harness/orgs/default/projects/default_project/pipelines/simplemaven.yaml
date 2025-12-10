@@ -191,11 +191,9 @@ pipeline:
                   timeout: 10m
                   spec:
                     connectorRef: account.harnessImage
-                    image: alpine:3.18
+                    image: curlimages/curl:latest
                     shell: Sh
                     command: |
-                      apk add --no-cache ca-certificates curl
-
                       echo "Uploading scan_report.json to Nexus Raw repository..."
 
                       curl -v \
@@ -204,9 +202,10 @@ pipeline:
                       "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json"
 
                       echo "Scan report uploaded successfully!"
-                envVariables:
-                  NEXUS_USERNAME: <+pipeline.variables.nexus_username>
-                  NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+                    envVariables:
+                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
+                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+            rollbackSteps: []
     - stage:
         name: Build_image
         identifier: Build_image
@@ -294,4 +293,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 06:14:10 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 06:25:46 UTC by sankaranarayanan.m.
