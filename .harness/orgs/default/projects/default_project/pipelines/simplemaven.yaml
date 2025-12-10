@@ -371,4 +371,4 @@ pipeline:
                       This is an automated notification from Harness CI/CD.
                   timeout: 10m
             rollbackSteps: []
-  description: This pipeline was updated by Harness AI on 2025-12-10 07:45:34 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 07:48:13 UTC by sankaranarayanan.m.
