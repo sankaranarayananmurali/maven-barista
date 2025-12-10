@@ -247,6 +247,8 @@ pipeline:
                           - AllErrors
                         action:
                           type: MarkAsFailure
+        delegateSelectors:
+          - docker-delegate
     - stage:
         name: Build_image
         identifier: Build_image
