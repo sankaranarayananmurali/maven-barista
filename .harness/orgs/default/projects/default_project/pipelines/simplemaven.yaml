@@ -130,6 +130,7 @@ pipeline:
                     config: default
                     target:
                       type: repository
+                      name: maven-app
                       workspace: .
                     detection: auto
                     advanced:
@@ -223,6 +224,7 @@ pipeline:
                     envVariables:
                       NEXUS_USERNAME: <+pipeline.variables.nexus_username>
                       NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+            rollbackSteps: []
           rollbackSteps: []
     - stage:
         name: Build_image
@@ -306,3 +308,4 @@ pipeline:
                       Pipeline: <+pipeline.name>
                       Build Number: <+pipeline.sequenceId>
                   timeout: 10m
+  description: This pipeline was updated by Harness AI on 2025-12-10 11:21:35 UTC by sankaranarayanan.m.
