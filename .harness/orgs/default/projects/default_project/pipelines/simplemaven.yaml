@@ -123,6 +123,12 @@ pipeline:
                     target:
                       type: repository
                       workspace: .
+                      detection: manual
+                      name: maven-barista
+                      variant: master
+                    advanced:
+                      log:
+                        level: info
                     settings:
                       report:
                         enabled: true
