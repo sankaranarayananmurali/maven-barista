@@ -85,3 +85,240 @@ pipeline:
 
                       TIMESTAMP=$(date +%Y%m%d%H%M%S)
                       BUILD_NUMBER=<+pipeline.sequenceId>
+                      DYNAMIC_VERSION="1.0.0-${TIMESTAMP}-${BUILD_NUMBER}"
+                      echo "Generated version: ${DYNAMIC_VERSION}"
+
+                      mvn versions:set -DnewVersion=${DYNAMIC_VERSION} -DgenerateBackupPoms=false
+
+                      mvn clean deploy
+
+                      export MAVEN_VERSION=${DYNAMIC_VERSION}
+
+                      ARTIFACT_PATH=$(find ./target -name "*.jar" -o -name "*.war" | head -1)
+                      echo "Artifact: ${ARTIFACT_PATH}"
+                      export ARTIFACT_PATH=${ARTIFACT_PATH}
+                    envVariables:
+                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
+                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+                    outputVariables:
+                      - name: MAVEN_VERSION
+                      - name: ARTIFACT_PATH
+                  timeout: 10m
+    - stage:
+        name: Scan
+        identifier: Scan
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Semgrep
+                  name: Semgrep_scan
+                  identifier: Semgrep_scan
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      type: repository
+                      workspace: .
+                      detection: auto
+                    advanced:
+                      log:
+                        level: info
+                      fail_on_severity: critical
+                    settings:
+                      report:
+                        enabled: true
+                        format: json
+                        path: semgrep-report.json
+                        directory: ./
+                      verbose: true
+                    outputVariables:
+                      - name: semgrep_findings
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: MarkAsFailure
+                  timeout: 10m
+              - step:
+                  type: Run
+                  name: verify_report_exists
+                  identifier: verify_report_exists
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Sh
+                    command: |
+                      echo "Checking semgrep-report.json..."
+
+                      if [ -f "semgrep-report.json" ]; then
+                        export REPORT_EXISTS="true"
+                      else
+                        export REPORT_EXISTS="false"
+                      fi
+
+                      echo "REPORT_EXISTS=$REPORT_EXISTS"
+                  outputVariables:
+                    - name: REPORT_EXISTS
+                  timeout: 10m
+              - step:
+                  type: Run
+                  name: Upload Scan Report to Nexus
+                  identifier: upload_scan_report
+                  when:
+                    stageStatus: Success
+                    condition: <+execution.steps.verify_report_exists.output.outputVariables.REPORT_EXISTS> == "true"
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: curlimages/curl:latest
+                    shell: Sh
+                    command: |
+                      echo "Uploading semgrep-report.json..."
+
+                      if [ ! -f "semgrep-report.json" ]; then
+                        echo "Report missing!"
+                        exit 1
+                      fi
+
+                      curl -v \
+                        -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
+                        --upload-file semgrep-report.json \
+                        "<+pipeline.variables.nexus_url>repository/raw-reports/scan-reports/<+pipeline.variables.maven_group_id>/<+pipeline.variables.maven_artifact_id>/scan_report.json"
+
+                      echo "Uploaded successfully!"
+                    envVariables:
+                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
+                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+                  timeout: 10m
+    - stage:
+        name: SCA_Scan
+        identifier: SCA_Scan
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Owasp
+                  name: Owasp_1
+                  identifier: Owasp_1
+                  spec:
+                    target:
+                      detection: auto
+                      type: repository
+                    advanced:
+                      log:
+                        level: info
+                    mode: orchestration
+                    config: default
+    - stage:
+        name: Build_image
+        identifier: Build_image
+        type: CI
+        delegateSelectors:
+          - docker-delegate
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec:
+              harnessImageConnectorRef: dockerhub
+          execution:
+            steps:
+              - step:
+                  type: BuildAndPushDockerRegistry
+                  name: BuildAndPushDockerRegistry
+                  identifier: BuildAndPushDockerRegistry_1
+                  spec:
+                    connectorRef: dockerhub
+                    repo: sankaranarayananmurali/maven-v1
+                    tags:
+                      - <+pipeline.sequenceId>
+                    dockerfile: Dockerfile
+                    context: .
+                    caching: true
+                    resources:
+                      limits:
+                        memory: 2Gi
+                        cpu: 1
+                      requests:
+                        memory: 1Gi
+                        cpu: 0.5
+                  timeout: 10m
+    - stage:
+        name: Build Approval
+        identifier: Build_Approval
+        type: Approval
+        delegateSelectors:
+          - docker-delegate
+        spec:
+          platform:
+            os: Linux
+            arch: Amd64
+          execution:
+            steps:
+              - step:
+                  type: HarnessApproval
+                  name: Docker Image Approval
+                  identifier: Docker_image_Approval
+                  timeout: 1d
+                  spec:
+                    approvalMessage: |
+                      Please review the results and approve the build.
+
+                      Docker Image: sankaranarayananmurali/maven-v1:<+pipeline.sequenceId>
+                      Maven Artifact: <+pipeline.variables.maven_group_id>:<+pipeline.variables.maven_artifact_id>:<+pipeline.variables.maven_version>
+                    includePipelineExecutionHistory: true
+                    approvers:
+                      minimumCount: 1
+                      disallowPipelineExecutor: false
+                      userGroups:
+                        - account._account_all_users
+              - step:
+                  type: Email
+                  name: Email_Notification
+                  identifier: Email_1
+                  spec:
+                    to: sankaranarayanan.m@xenovex.com
+                    subject: Build Approved
+                    body: |
+                      Build approved successfully.
+
+                      Pipeline: <+pipeline.name>
+                      Build Number: <+pipeline.sequenceId>
+                      Maven Version: <+pipeline.stages.mvnbuild.spec.execution.steps.maven_build.output.outputVariables.MAVEN_VERSION>
+                      Docker Image: sankaranarayananmurali/maven-v1:<+pipeline.sequenceId>
+                  timeout: 10m
