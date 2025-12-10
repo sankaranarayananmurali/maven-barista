@@ -233,8 +233,8 @@ pipeline:
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Bash
-                    command: |
+                    shell: Sh
+                    command: |-
                       # Install dependencies needed for Ruby installation
                       apk add --update --no-cache \
                         build-base \
@@ -261,6 +261,8 @@ pipeline:
                       export RUBY_INSTALLED="true"
                     outputVariables:
                       - name: RUBY_INSTALLED
+                        type: String
+                        value: RUBY_INSTALLED
                   timeout: 10m
               - step:
                   type: Owasp
