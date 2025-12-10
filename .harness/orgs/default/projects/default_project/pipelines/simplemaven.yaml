@@ -149,27 +149,40 @@ pipeline:
 
                       # Install ca-certificates package, jq, and update certificate store
                       # Using --no-check-certificate to bypass SSL verification during package installation
-                      apk add --no-cache --no-check-certificate ca-certificates jq
+                      apk add --no-cache --no-check-certificate ca-certificates jq curl
                       update-ca-certificates
 
-                      # Run Semgrep scan and output to JSON format
+                      # Set version for report files
+                      TIMESTAMP=$(date +%Y%m%d%H%M%S)
+                      BUILD_NUMBER=<+pipeline.sequenceId>
+                      REPORT_VERSION="${TIMESTAMP}-${BUILD_NUMBER}"
+                      echo "Using report version: ${REPORT_VERSION}"
+
+                      # Run Semgrep scan and output to multiple formats
+                      echo "Running Semgrep scan with auto config..."
                       semgrep scan \
                         --config=auto \
                         --json \
                         --output=semgrep-report.json \
+                        --sarif \
+                        --output=semgrep-report.sarif \
+                        --junit-xml \
+                        --output=semgrep-report.xml \
                         .
 
                       # Store scan exit code
                       SCAN_EXIT_CODE=$?
+                      echo "Semgrep scan completed with exit code: ${SCAN_EXIT_CODE}"
 
-                      # Check if report was generated
+                      # Check if reports were generated
                       if [ ! -f "semgrep-report.json" ]; then
                         echo "ERROR: semgrep-report.json file NOT generated!"
+                        export UPLOAD_STATUS="failed"
                         exit 1
                       fi
 
-                      echo "Report generated:"
-                      ls -lh semgrep-report.json
+                      echo "Reports generated:"
+                      ls -lh semgrep-report.*
 
                       # Extract findings counts for output variables
                       TOTAL_FINDINGS=$(jq '.results | length' semgrep-report.json)
@@ -187,22 +200,93 @@ pipeline:
 
                       echo "=== Uploading to Nexus ==="
 
-                      # Upload report to Nexus
-                      HTTP_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/curl_response \
-                        -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
-                        --upload-file semgrep-report.json \
-                        --insecure \
-                        "${NEXUS_URL}/repository/raw-reports/scan-reports/${MAVEN_GROUP_ID}/${MAVEN_ARTIFACT_ID}/semgrep-report.json")
+                      # Create metadata file
+                      cat > metadata.json << EOF
+                      {
+                        "scanTool": "Semgrep",
+                        "scanDate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+                        "projectId": "${MAVEN_GROUP_ID}:${MAVEN_ARTIFACT_ID}",
+                        "buildNumber": "${BUILD_NUMBER}",
+                        "findings": {
+                          "total": ${TOTAL_FINDINGS},
+                          "critical": ${CRITICAL_FINDINGS},
+                          "high": ${HIGH_FINDINGS},
+                          "medium": ${MEDIUM_FINDINGS},
+                          "low": ${LOW_FINDINGS}
+                        }
+                      }
+                      EOF
 
-                      # Check upload status
-                      if [ "$HTTP_RESPONSE" -lt 200 ] || [ "$HTTP_RESPONSE" -ge 300 ]; then
-                        echo "Upload FAILED. HTTP $HTTP_RESPONSE"
-                        cat /tmp/curl_response
-                        export UPLOAD_STATUS="failed"
-                        exit 1
-                      else
-                        echo "Upload successful!"
+                      # Create base path for uploads
+                      NEXUS_BASE_PATH="${NEXUS_URL}/repository/raw-reports/scan-reports/${MAVEN_GROUP_ID}/${MAVEN_ARTIFACT_ID}/${REPORT_VERSION}"
+
+                      # Function to upload a file with retry logic
+                      upload_to_nexus() {
+                        local file=$1
+                        local target_path=$2
+                        local max_retries=3
+                        local retry_count=0
+                        local success=false
+                        
+                        while [ $retry_count -lt $max_retries ] && [ "$success" != "true" ]; do
+                          echo "Uploading $file to $target_path (Attempt $(($retry_count + 1))/${max_retries})"
+                          
+                          HTTP_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/curl_response \
+                            -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
+                            --upload-file "$file" \
+                            --insecure \
+                            "$target_path")
+                          
+                          if [ "$HTTP_RESPONSE" -ge 200 ] && [ "$HTTP_RESPONSE" -lt 300 ]; then
+                            echo "Upload successful for $file!"
+                            success=true
+                          else
+                            echo "Upload FAILED for $file. HTTP $HTTP_RESPONSE"
+                            cat /tmp/curl_response
+                            retry_count=$((retry_count + 1))
+                            [ $retry_count -lt $max_retries ] && echo "Retrying in 5 seconds..." && sleep 5
+                          fi
+                        done
+                        
+                        return $([ "$success" = "true" ] && echo 0 || echo 1)
+                      }
+
+                      # Upload all report formats and metadata
+                      upload_status=0
+
+                      # Upload JSON report
+                      upload_to_nexus "semgrep-report.json" "${NEXUS_BASE_PATH}/semgrep-report.json"
+                      [ $? -ne 0 ] && upload_status=1
+
+                      # Upload SARIF report if it exists
+                      if [ -f "semgrep-report.sarif" ]; then
+                        upload_to_nexus "semgrep-report.sarif" "${NEXUS_BASE_PATH}/semgrep-report.sarif"
+                        [ $? -ne 0 ] && upload_status=1
+                      fi
+
+                      # Upload XML report if it exists
+                      if [ -f "semgrep-report.xml" ]; then
+                        upload_to_nexus "semgrep-report.xml" "${NEXUS_BASE_PATH}/semgrep-report.xml"
+                        [ $? -ne 0 ] && upload_status=1
+                      fi
+
+                      # Upload metadata
+                      upload_to_nexus "metadata.json" "${NEXUS_BASE_PATH}/metadata.json"
+                      [ $? -ne 0 ] && upload_status=1
+
+                      # Also upload to the latest folder to always have the most recent version available at a known location
+                      upload_to_nexus "semgrep-report.json" "${NEXUS_URL}/repository/raw-reports/scan-reports/${MAVEN_GROUP_ID}/${MAVEN_ARTIFACT_ID}/latest/semgrep-report.json"
+                      upload_to_nexus "metadata.json" "${NEXUS_URL}/repository/raw-reports/scan-reports/${MAVEN_GROUP_ID}/${MAVEN_ARTIFACT_ID}/latest/metadata.json"
+
+                      # Set final upload status
+                      if [ $upload_status -eq 0 ]; then
+                        echo "All uploads completed successfully!"
                         export UPLOAD_STATUS="success"
+                        export REPORT_URL="${NEXUS_BASE_PATH}/semgrep-report.json"
+                      else
+                        echo "One or more uploads failed!"
+                        export UPLOAD_STATUS="partial"
+                        export REPORT_URL="${NEXUS_BASE_PATH}/semgrep-report.json"
                       fi
 
                       # Return original scan exit code
@@ -232,6 +316,9 @@ pipeline:
                       - name: UPLOAD_STATUS
                         type: String
                         value: UPLOAD_STATUS
+                      - name: REPORT_URL
+                        type: String
+                        value: REPORT_URL
                   timeout: 10m
             rollbackSteps: []
     - stage:
@@ -381,4 +468,4 @@ pipeline:
                       This is an automated notification from Harness CI/CD.
                   timeout: 10m
             rollbackSteps: []
-  description: This pipeline was updated by Harness AI on 2025-12-10 10:11:19 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-10 10:17:22 UTC by sankaranarayanan.m.
