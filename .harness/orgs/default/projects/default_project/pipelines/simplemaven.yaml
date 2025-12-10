@@ -194,24 +194,19 @@ pipeline:
                     image: alpine:3.18
                     shell: Sh
                     command: |
-                      # Install ca-certificates without updating apk first
-                      apk add --no-cache ca-certificates
-                      update-ca-certificates
+                      apk add --no-cache ca-certificates curl
 
-                      # Install curl
-                      apk add --no-cache curl
+                      echo "Uploading scan_report.json to Nexus Raw repository..."
 
-                      # Upload scan_report.json to Nexus raw repository
                       curl -v \
-                      -u "${nexus_username}:${nexus_password}" \
+                      -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
                       --upload-file scan_report.json \
                       "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json"
 
-                      echo "Scan report uploaded successfully to Nexus"
-                    envVariables:
-                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
-                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
-            rollbackSteps: []
+                      echo "Scan report uploaded successfully!"
+                envVariables:
+                  NEXUS_USERNAME: <+pipeline.variables.nexus_username>
+                  NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
     - stage:
         name: Build_image
         identifier: Build_image
