@@ -141,7 +141,7 @@ pipeline:
                   name: Semgrep_scan
                   identifier: Semgrep_scan
                   spec:
-                    mode: orchestration
+                    mode: ingestion
                     config: default
                     target:
                       type: repository
@@ -164,10 +164,11 @@ pipeline:
                         enabled: true
                         format: json
                         path: semgrep-report.json
-                        directory: /shared
+                        directory: .
                         verbose: true
                       post_scan:
                         command: |
+                          cp /tmp/output.sarif semgrep-report.json
                           # Upload the semgrep report to Nexus
                           curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
                           --upload-file "/shared/semgrep-report.json" \
