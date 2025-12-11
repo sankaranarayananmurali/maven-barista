@@ -198,9 +198,9 @@ pipeline:
                   name: Email Notification
                   identifier: email_notification
                   spec:
-                    connectorRef: account.harnessImage
-                    image: ubuntu
-                    shell: Bash
+                    connectorRef: dockerhub
+                    image: alpine/curl:8.14.1
+                    shell: Sh
                     command: |-
                       # Create email content with pipeline execution details
                       cat > email_content.html << EOF
