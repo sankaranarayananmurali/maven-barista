@@ -58,6 +58,8 @@ pipeline:
                       type: branch
                       spec:
                         branch: master
+        delegateSelectors:
+          - docker-delegate
     - stage:
         name: Test
         identifier: Test
