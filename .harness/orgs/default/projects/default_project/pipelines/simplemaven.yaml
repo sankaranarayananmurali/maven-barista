@@ -239,36 +239,34 @@ pipeline:
                       identifier: bandit_run
                       spec:
                         connectorRef: account.harnessImage
-                        image: alpine
+                        image: python:3.12-alpine
                         shell: Sh
                         command: |-
-                          # Install Python and Bandit
-                          apk add --no-cache python3 py3-pip
-                          pip3 install bandit
+                          set -ex
+                           echo "Installing Bandit..."
+                           pip install --no-cache-dir bandit
 
-                          # Create output directory if it doesn't exist
-                          mkdir -p /shared/scan_results
+                           echo "Creating output directory..."
+                           mkdir -p /shared/scan_results
 
-                          # Run Bandit security scanner
-                          echo "Running Bandit security scanner..."
-                          bandit -r . -f json -o /shared/scan_results/bandit_results.json
+                           echo "Running Bandit security scanner..."
+                           bandit -r . -f json -o /shared/scan_results/bandit_results.json
+                           STATUS=$?
 
-                          # Check if scan completed successfully
-                          if [ $? -eq 0 ]; then
-                            echo "Bandit scan completed successfully"
-                            export SCAN_STATUS="success"
-                          else
-                            echo "Bandit scan completed with issues"
-                            export SCAN_STATUS="issues_found"
-                          fi
+                           if [ $STATUS -eq 0 ]; then
+                           echo "Bandit scan completed successfully"
+                             export SCAN_STATUS="success"
+                           else
+                             echo "Bandit scan completed with issues"
+                             export SCAN_STATUS="issues_found"
+                           fi
 
-                          # Display summary of results
-                          echo "Scan results saved to /shared/scan_results/bandit_results.json"
+                           echo "Scan results saved to /shared/scan_results/bandit_results.json"
                         outputVariables:
                           - name: SCAN_STATUS
                             type: String
                             value: SCAN_STATUS
-                      timeout: 10m
+                            timeout: 10m
               - step:
                   identifier: Security_ingest
                   name: Ingest Bandit Security Scan
@@ -277,9 +275,9 @@ pipeline:
                   spec:
                     mode: ingestion
                     tool: bandit
-                    target:
-                      type: repository
-                      workspace: .
+                    target: null
+                    type: repository
+                    workspace: .
                     settings:
                       report:
                         path: /shared/scan_results/bandit_results.json
