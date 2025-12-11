@@ -176,8 +176,8 @@ pipeline:
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Bash
-                    command: |
+                    shell: Sh
+                    command: |-
                       # Wait for dashboard data to be available
                       echo "Waiting for dashboard data to be available..."
                       sleep 30
@@ -206,6 +206,8 @@ pipeline:
                       PIPELINE_NAME: <+pipeline.name>
                     outputVariables:
                       - name: REPORT_STATUS
+                        type: String
+                        value: REPORT_STATUS
                   timeout: 10m
             rollbackSteps: []
     - stage:
