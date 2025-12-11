@@ -27,6 +27,12 @@ pipeline:
     - name: maven_version
       type: String
       value: 1.0.0-${timestamp}-${buildNumber}
+    - name: TOKEN
+      type: String
+      value: ""
+    - name: DASHBOARD_ID
+      type: String
+      value: ""
   stages:
     - stage:
         name: mvn-build
@@ -165,92 +171,43 @@ pipeline:
                   timeout: 10m
               - step:
                   type: Run
-                  name: save_semgrep_report
-                  identifier: save_semgrep_report
+                  name: Dashboard Reporting
+                  identifier: dashboard_reporting_step
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Sh
-                    command: |-
-                      # Check if semgrep-report.json exists and copy it to scan_report.json
-                      if [ -f semgrep-report.json ]; then
-                        echo "Copying semgrep-report.json to scan_report.json"
-                        cp semgrep-report.json scan_report.json
-                        echo "File copied successfully"
-                      else
-                        echo "Warning: semgrep-report.json file not found"
-                        echo "{}" > scan_report.json
-                        echo "Created empty scan_report.json file"
-                      fi
-                  timeout: 10m
-                  rollbackSteps: []
-              - step:
-                  identifier: upload_scan_report
-                  name: Upload Scan Report to Nexus
-                  type: Run
-                  timeout: 10m
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: curlimages/curl:latest
-                    shell: Sh
+                    shell: Bash
                     command: |
-                      echo "Uploading scan_report.json to Nexus Raw repository..."
+                      # Wait for dashboard data to be available
+                      echo "Waiting for dashboard data to be available..."
+                      sleep 30
 
-                      curl -v \
-                      -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
-                      --upload-file scan_report.json \
-                      "http://10.10.10.20:8081/repository/raw-reports/scan-reports/com.example/maven-app/scan_report.json"
+                      # Make curl request to schedule dashboard report
+                      echo "Scheduling dashboard report generation..."
+                      curl -X POST \
+                        "https://app.harness.io/gateway/api/dashboards/report/schedule" \
+                        -H "Content-Type: application/json" \
+                        -H "Authorization: Bearer $API_TOKEN" \
+                        -d "{
+                          \"dashboardId\": \"$DASHBOARD_ID\",
+                          \"accountId\": \"$ACCOUNT_ID\",
+                          \"executionId\": \"$EXECUTION_ID\",
+                          \"pipelineName\": \"$PIPELINE_NAME\",
+                          \"emailRecipients\": [\"sankaranarayanan.m@xenovex.com\"]
+                        }"
 
-                      echo "Scan report uploaded successfully!"
+                      # Export status as output variable
+                      export REPORT_STATUS="Scheduled"
                     envVariables:
-                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
-                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+                      API_TOKEN: <+secrets.getValue("harness-docker")>
+                      DASHBOARD_ID: <+pipeline.variables.DASHBOARD_ID>
+                      ACCOUNT_ID: <+account.identifier>
+                      EXECUTION_ID: <+pipeline.executionId>
+                      PIPELINE_NAME: <+pipeline.name>
+                    outputVariables:
+                      - name: REPORT_STATUS
+                  timeout: 10m
             rollbackSteps: []
-    - stage:
-        name: SCA
-        identifier: SCA
-        description: ""
-        type: CI
-        spec:
-          cloneCodebase: true
-          caching:
-            enabled: true
-            override: true
-          buildIntelligence:
-            enabled: true
-          platform:
-            os: Linux
-            arch: Amd64
-          runtime:
-            type: Docker
-            spec: {}
-          execution:
-            steps:
-              - step:
-                  type: Owasp
-                  name: Owasp_1
-                  identifier: Owasp_1
-                  spec:
-                    mode: orchestration
-                    config: default
-                    target:
-                      type: repository
-                      workspace: .
-                      detection: auto
-                    advanced:
-                      log:
-                        level: info
-                        serializer: simple
-                      fail_on_severity: high
-                  timeout: 30m
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: MarkAsFailure
-        delegateSelectors:
-          - docker-delegate
     - stage:
         name: Build_image
         identifier: Build_image
@@ -338,4 +295,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-10 11:59:04 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-11 05:15:49 UTC by sankaranarayanan.m.
