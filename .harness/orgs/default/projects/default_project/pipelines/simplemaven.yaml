@@ -236,12 +236,9 @@ pipeline:
                   identifier: dashboard_scan_report
                   spec:
                     connectorRef: dockerhub
-                    image: alpine
+                    image: curlimages/curl:latest
                     shell: Sh
-                    command: |-
-                      # Install required packages
-                      apk add --no-cache curl jq
-
+                    command: |
                       # Check if semgrep report exists
                       if [ ! -f semgrep-report.json ]; then
                         echo "Error: semgrep-report.json file not found"
@@ -262,7 +259,7 @@ pipeline:
                         \"project\": \"<+project.name>\",
                         \"pipeline\": \"<+pipeline.name>\",
                         \"branch\": \"<+pipeline.branch>\",
-                        \"timestamp\": \"$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")\",
+                        \"timestamp\": \"$(date -u "%Y-%m-%dT%H:%M:%SZ")\",
                         \"findings\": {
                           \"total\": $TOTAL_FINDINGS,
                           \"critical\": $CRITICAL,
@@ -378,4 +375,4 @@ pipeline:
                         value: <+httpResponseBody>
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-11 15:45:07 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-11 15:55:32 UTC by sankaranarayanan.m.
