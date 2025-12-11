@@ -90,6 +90,8 @@ pipeline:
                     shell: Sh
                     command: mvn test
                     intelligenceMode: true
+        delegateSelectors:
+          - docker-delegate
     - stage:
         name: mvn-build
         identifier: mvnbuild
