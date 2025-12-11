@@ -97,11 +97,10 @@ pipeline:
 
                       # Run tests
                       mvn test
-                    intelligenceMode: false
-                    timeout: 10m
                     envVariables:
                       JAVA_HOME: /usr/lib/jvm/java-11-openjdk
                       MAVEN_OPTS: "-Djansi.force=true"
+                    intelligenceMode: false
             rollbackSteps: []
         delegateSelectors:
           - docker-delegate
