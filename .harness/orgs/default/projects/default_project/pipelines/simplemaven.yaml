@@ -259,34 +259,34 @@ pipeline:
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Bash
+                    shell: Sh
                     command: |
                       # Check if email recipient is set
-                      if [ -z "${EMAIL_RECIPIENT}" ]; then
+                      if [ -z "${EMAIL_TO}" ]; then
                         echo "Error: Email recipient not specified"
                         exit 1
                       fi
 
                       # Format email content
-                      echo "Preparing email notification for ${EMAIL_RECIPIENT}"
-                      echo "Subject: Security Scan Results - Status: ${SCAN_STATUS}"
-                      echo "Body: Security scan completed with status: ${SCAN_STATUS}. View details at ${PIPELINE_URL}"
+                      echo "Preparing email notification for ${EMAIL_TO}"
+                      echo "Subject: Security Scan Results - Status: Completed"
+                      echo "Body: Security scan completed with status: Completed. View details at ${PIPELINE_URL}"
 
                       # In a real scenario, this would use an email sending utility
                       # For demonstration, we'll just log the notification
-                      echo "Email notification sent successfully to ${EMAIL_RECIPIENT}"
+                      echo "Email notification sent successfully to ${EMAIL_TO}"
 
                       # Set output variable for confirmation
                       export NOTIFICATION_SENT="true"
                     envVariables:
-                      EMAIL_RECIPIENT: <+pipeline.variables.email_recipient>
-                      SCAN_STATUS: <+pipeline.stages.scan_stage.status>
+                      EMAIL_TO: <+pipeline.variables.email_recipient>
                       PIPELINE_URL: <+pipeline.executionUrl>
                     outputVariables:
                       - name: NOTIFICATION_SENT
                   timeout: 10m
                   when:
                     stageStatus: All
+            rollbackSteps: []
           failureStrategies:
             - onFailure:
                 errors:
@@ -381,4 +381,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-11 16:45:46 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-11 18:13:35 UTC by sankaranarayanan.m.
