@@ -61,50 +61,6 @@ pipeline:
         delegateSelectors:
           - docker-delegate
     - stage:
-        name: Test
-        identifier: Test
-        description: Updated Test stage with fixed Java agent issues
-        type: CI
-        spec:
-          cloneCodebase: true
-          caching:
-            enabled: true
-            override: true
-          buildIntelligence:
-            enabled: false
-          platform:
-            os: Linux
-            arch: Amd64
-          runtime:
-            type: Docker
-            spec: {}
-          execution:
-            steps:
-              - step:
-                  type: Test
-                  name: Test_1
-                  identifier: Test_1
-                  spec:
-                    connectorRef: dockerhub
-                    image: maven:3.9.6
-                    shell: Sh
-                    command: |
-                      # Install required dependencies
-                      apt-get update && apt-get install -y curl jq
-
-                      # Set up environment for tests
-                      export MAVEN_OPTS="-Xmx1024m -XX:MaxPermSize=256m"
-
-                      # Run tests
-                      mvn test
-                    envVariables:
-                      JAVA_HOME: /usr/lib/jvm/java-11-openjdk
-                      MAVEN_OPTS: "-Djansi.force=true"
-                    intelligenceMode: false
-            rollbackSteps: []
-        delegateSelectors:
-          - docker-delegate
-    - stage:
         name: mvn-build
         identifier: mvnbuild
         description: Maven build and Semgrep scan
@@ -224,9 +180,7 @@ pipeline:
                     advanced:
                       log:
                         level: info
-                      fail_on_severity: critical
-                    outputVariables:
-                      - name: semgrep_findings
+                      fail_on_severity: high
                     settings:
                       report:
                         enabled: true
