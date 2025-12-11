@@ -169,9 +169,9 @@ pipeline:
                   identifier: email_notification
                   spec:
                     connectorRef: account.harnessImage
-                    image: alpine
+                    image: ubuntu
                     shell: Bash
-                    command: |
+                    command: |-
                       # Create email content with pipeline execution details
                       cat > email_content.html << EOF
                       <html>
