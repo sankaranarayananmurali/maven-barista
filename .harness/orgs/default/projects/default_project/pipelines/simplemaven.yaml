@@ -249,6 +249,12 @@ pipeline:
                           fail_on_severity: high
                           args:
                             cli: "--format json --output bandit_results.json"
+                      failureStrategies:
+                        - onFailure:
+                            errors:
+                              - AllErrors
+                            action:
+                              type: MarkAsFailure
               - step:
                   type: Run
                   name: Email Notification
@@ -257,7 +263,7 @@ pipeline:
                     connectorRef: account.harnessImage
                     image: alpine
                     shell: Sh
-                    command: |
+                    command: |-
                       # Check if email recipient is set
                       if [ -z "${EMAIL_TO}" ]; then
                         echo "Error: Email recipient not specified"
@@ -280,6 +286,8 @@ pipeline:
                       PIPELINE_URL: <+pipeline.executionUrl>
                     outputVariables:
                       - name: NOTIFICATION_SENT
+                        type: String
+                        value: NOTIFICATION_SENT
                   timeout: 10m
                   when:
                     stageStatus: All
