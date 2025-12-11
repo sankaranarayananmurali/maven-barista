@@ -237,21 +237,18 @@ pipeline:
                       type: Bandit
                       timeout: 10m
                       spec:
-                        config: default
                         mode: orchestration
+                        config: default
                         target:
                           type: repository
-                          name: python_codebase
+                          workspace: .
                           detection: auto
                         advanced:
-                          fail_on_severity: high
                           log:
                             level: info
+                          fail_on_severity: high
                           args:
                             cli: "--format json --output bandit_results.json"
-                        outputVariables:
-                          - name: scan_results
-                          - name: vulnerability_count
               - step:
                   type: Run
                   name: Email Notification
