@@ -174,8 +174,8 @@ pipeline:
                   name: Dashboard Reporting
                   identifier: dashboard_reporting_step
                   spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
+                    connectorRef: dockerhub
+                    image: ubuntu
                     shell: Sh
                     command: |-
                       # Wait for dashboard data to be available
