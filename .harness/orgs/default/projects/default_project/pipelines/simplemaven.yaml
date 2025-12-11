@@ -180,7 +180,7 @@ pipeline:
                     advanced:
                       log:
                         level: info
-                      fail_on_severity: high
+                      fail_on_severity: critical
                     settings:
                       report:
                         enabled: true
