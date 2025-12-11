@@ -11,6 +11,25 @@ pipeline:
         connectorRef: mavengithubconnector
         build: <+input>
         sparseCheckout: []
+  notificationRules:
+    - name: Pipeline Success Notification
+      enabled: true
+      pipelineEvents:
+        - type: PipelineSuccess
+      notificationMethod:
+        type: Email
+        spec:
+          recipients:
+            - <+pipeline.variables.EMAIL_TO>
+    - name: Pipeline Failure Notification
+      enabled: true
+      pipelineEvents:
+        - type: PipelineFailed
+      notificationMethod:
+        type: Email
+        spec:
+          recipients:
+            - <+pipeline.variables.EMAIL_TO>
   variables:
     - name: nexus_url
       type: String
@@ -31,6 +50,18 @@ pipeline:
       type: String
       value: ""
     - name: DASHBOARD_ID
+      type: String
+      value: ""
+    - name: SMTP_SERVER
+      type: String
+      value: ""
+    - name: SMTP_PORT
+      type: String
+      value: ""
+    - name: EMAIL_FROM
+      type: String
+      value: ""
+    - name: EMAIL_TO
       type: String
       value: ""
   stages:
@@ -201,51 +232,79 @@ pipeline:
                   timeout: 10m
               - step:
                   type: Run
-                  name: Email Notification
-                  identifier: email_notification
+                  name: Email Scan Results
+                  identifier: email_scan_results
                   spec:
                     connectorRef: account.harnessImage
-                    image: curlimages/curl
-                    shell: Sh
+                    image: alpine
+                    shell: Bash
                     command: |
-                      # Create email content with pipeline execution details
-                      cat > email_content.html << EOF
+                      # Install required packages
+                      apk add --no-cache curl jq
+
+                      # Read the semgrep report file
+                      echo "Reading semgrep scan results..."
+                      if [ ! -f semgrep-report.json ]; then
+                        echo "Error: semgrep-report.json file not found"
+                        exit 1
+                      fi
+
+                      # Parse the report and format for email
+                      TOTAL_FINDINGS=$(jq '.results | length' semgrep-report.json)
+                      CRITICAL=$(jq '.results[] | select(.extra.severity == "ERROR") | .extra.severity' semgrep-report.json | wc -l)
+                      HIGH=$(jq '.results[] | select(.extra.severity == "WARNING") | .extra.severity' semgrep-report.json | wc -l)
+                      MEDIUM=$(jq '.results[] | select(.extra.severity == "INFO") | .extra.severity' semgrep-report.json | wc -l)
+                      LOW=$(jq '.results[] | select(.extra.severity == "NONE") | .extra.severity' semgrep-report.json | wc -l)
+
+                      # Generate timestamp
+                      TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+
+                      # Create email content
+                      EMAIL_SUBJECT="Semgrep Scan Results - Pipeline: <+pipeline.name>"
+                      EMAIL_BODY="""
                       <html>
                       <body>
-                      <h2>Pipeline Execution Summary</h2>
-                      <p><strong>Pipeline:</strong> <+pipeline.name></p>
-                      <p><strong>Execution ID:</strong> <+pipeline.executionId></p>
-                      <p><strong>Status:</strong> <+pipeline.status></p>
-                      <p><strong>Execution URL:</strong> <+pipeline.executionUrl></p>
+                      <h2>Semgrep Security Scan Results</h2>
+                      <p><b>Pipeline:</b> <+pipeline.name> (<+pipeline.identifier>)</p>
+                      <p><b>Execution ID:</b> <+pipeline.executionId></p>
+                      <p><b>Triggered by:</b> <+pipeline.triggeredBy.name></p>
+                      <p><b>Scan completed at:</b> $TIMESTAMP</p>
 
-                      <h3>Maven Build Details</h3>
-                      <p><strong>Version:</strong> <+pipeline.stages.mvnbuild.spec.execution.steps.maven_build.output.outputVariables.MAVEN_VERSION></p>
-                      <p><strong>Artifact Path:</strong> <+pipeline.stages.mvnbuild.spec.execution.steps.maven_build.output.outputVariables.ARTIFACT_PATH></p>
+                      <h3>Scan Summary:</h3>
+                      <ul>
+                        <li>Total findings: $TOTAL_FINDINGS</li>
+                        <li>Critical: $CRITICAL</li>
+                        <li>High: $HIGH</li>
+                        <li>Medium: $MEDIUM</li>
+                        <li>Low: $LOW</li>
+                      </ul>
 
-                      <h3>Semgrep Scan Results</h3>
-                      <p><strong>Findings:</strong> ${SEMGREP_FINDINGS}</p>
-
-                      <h3>Docker Image</h3>
-                      <p><strong>Repository:</strong> sankaranarayananmurali/maven-v1</p>
-                      <p><strong>Tag:</strong> <+pipeline.sequenceId></p>
+                      <p><a href="<+pipeline.executionUrl>">View full pipeline execution</a></p>
                       </body>
                       </html>
-                      EOF
+                      """
 
-                      # Send email using curl
-                      curl -X POST \
-                        -H "Content-Type: application/json" \
-                        -d "{\
-                          \"to\": \"sankaranarayanan.m@xenovex.com\",\
-                          \"subject\": \"Pipeline Execution Report - <+pipeline.name> #<+pipeline.sequenceId>\",\
-                          \"body\": \"$(cat email_content.html | sed 's/"/\\\"/g' | tr -d '\n')\",\
-                          \"isHtml\": true\
-                        }" \
-                        "https://notification-service/v1/send"
+                      # Save email content to file
+                      echo "$EMAIL_BODY" > email_content.html
 
-                      echo "Email notification sent successfully"
+                      # Send email using curl and SMTP
+                      echo "Sending email with scan results..."
+                      curl --url "smtp://$SMTP_SERVER:$SMTP_PORT" \
+                        --ssl-reqd \
+                        --mail-from "$EMAIL_FROM" \
+                        --mail-rcpt "$EMAIL_TO" \
+                        --user "$EMAIL_FROM:$EMAIL_PASSWORD" \
+                        -H "Subject: $EMAIL_SUBJECT" \
+                        -H "Content-Type: text/html" \
+                        --upload-file email_content.html
+
+                      echo "Email sent successfully!"
                     envVariables:
-                      SEMGREP_FINDINGS: <+execution.steps.Semgrep_scan.output.outputVariables.semgrep_findings>
+                      SMTP_SERVER: <+pipeline.variables.SMTP_SERVER>
+                      SMTP_PORT: <+pipeline.variables.SMTP_PORT>
+                      EMAIL_FROM: <+pipeline.variables.EMAIL_FROM>
+                      EMAIL_TO: <+pipeline.variables.EMAIL_TO>
+                      EMAIL_PASSWORD: <+secrets.getValue("email_password")>
                   timeout: 10m
             rollbackSteps: []
     - stage:
@@ -341,4 +400,4 @@ pipeline:
                         value: <+httpResponseBody>
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-11 09:58:54 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-11 10:58:16 UTC by sankaranarayanan.m.
