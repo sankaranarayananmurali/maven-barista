@@ -63,7 +63,7 @@ pipeline:
     - stage:
         name: Test
         identifier: Test
-        description: ""
+        description: Updated Test stage with fixed Java agent issues
         type: CI
         spec:
           cloneCodebase: true
@@ -71,7 +71,7 @@ pipeline:
             enabled: true
             override: true
           buildIntelligence:
-            enabled: true
+            enabled: false
           platform:
             os: Linux
             arch: Amd64
@@ -88,8 +88,21 @@ pipeline:
                     connectorRef: dockerhub
                     image: maven:3.9.6
                     shell: Sh
-                    command: mvn test
-                    intelligenceMode: true
+                    command: |
+                      # Install required dependencies
+                      apt-get update && apt-get install -y curl jq
+
+                      # Set up environment for tests
+                      export MAVEN_OPTS="-Xmx1024m -XX:MaxPermSize=256m"
+
+                      # Run tests
+                      mvn test
+                    intelligenceMode: false
+                    timeout: 10m
+                    envVariables:
+                      JAVA_HOME: /usr/lib/jvm/java-11-openjdk
+                      MAVEN_OPTS: "-Djansi.force=true"
+            rollbackSteps: []
         delegateSelectors:
           - docker-delegate
     - stage:
@@ -363,4 +376,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-11 05:53:50 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-11 06:24:58 UTC by sankaranarayanan.m.
