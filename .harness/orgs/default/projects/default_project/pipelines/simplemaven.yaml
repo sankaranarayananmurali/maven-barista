@@ -66,38 +66,6 @@ pipeline:
       value: ""
   stages:
     - stage:
-        name: Git-Clone
-        identifier: GitClone
-        description: ""
-        type: CI
-        spec:
-          cloneCodebase: true
-          caching:
-            enabled: true
-            override: true
-          buildIntelligence:
-            enabled: true
-          platform:
-            os: Linux
-            arch: Amd64
-          runtime:
-            type: Docker
-            spec: {}
-          execution:
-            steps:
-              - step:
-                  type: GitClone
-                  name: GitClone_1
-                  identifier: GitClone_1
-                  spec:
-                    connectorRef: mavengithubconnector
-                    build:
-                      type: branch
-                      spec:
-                        branch: master
-        delegateSelectors:
-          - docker-delegate
-    - stage:
         name: mvn-build
         identifier: mvnbuild
         description: Maven build and Semgrep scan
