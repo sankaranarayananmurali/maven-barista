@@ -29,6 +29,66 @@ pipeline:
       value: 1.0.0-${timestamp}-${buildNumber}
   stages:
     - stage:
+        name: Git-Clone
+        identifier: GitClone
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: GitClone
+                  name: GitClone_1
+                  identifier: GitClone_1
+                  spec:
+                    connectorRef: mavengithubconnector
+                    build:
+                      type: branch
+                      spec:
+                        branch: master
+    - stage:
+        name: Test
+        identifier: Test
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Test
+                  name: Test_1
+                  identifier: Test_1
+                  spec:
+                    connectorRef: dockerhub
+                    image: maven:3.9.6
+                    shell: Sh
+                    command: mvn test
+                    intelligenceMode: true
+    - stage:
         name: mvn-build
         identifier: mvnbuild
         description: Maven build and Semgrep scan
