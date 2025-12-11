@@ -353,23 +353,18 @@ pipeline:
                         - account._account_all_users
                     isAutoRejectEnabled: false
               - step:
-                  identifier: Http_1
-                  name: Dashboard Report
-                  type: Http
-                  timeout: 10m
+                  type: Email
+                  name: Email Notification regarding build Approval
+                  identifier: Email_Notification_regarding_build_Approval
                   spec:
-                    method: GET
-                    url: <+pipeline.variables.nexus_url>/service/rest/v1/components?repository=maven-releases&group=<+pipeline.variables.maven_group_id>&name=<+pipeline.variables.maven_artifact_id>
-                    headers:
-                      - key: Authorization
-                        value: Basic <+pipeline.variables.nexus_username>:<+secrets.getValue("Nexus Password")>
-                      - key: Accept
-                        value: application/json
-                    assertion: <+httpResponseCode> == 200
-                    outputVariables:
-                      - name: dashboard_data
-                        type: String
-                        value: <+httpResponseBody>
+                    to: sankaranarayan.m@xenovex.com
+                    cc: ""
+                    subject: "Build Approval "
+                    body: "Build approved! "
+                    toUserGroups: []
+                    delegateSelectors:
+                      - docker-delegate
+                  timeout: 10m
             rollbackSteps: []
         tags: {}
   description: This pipeline was updated by Harness AI on 2025-12-11 16:45:46 UTC by sankaranarayanan.m.
