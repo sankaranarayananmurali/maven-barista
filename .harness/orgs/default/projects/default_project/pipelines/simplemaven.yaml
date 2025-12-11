@@ -240,8 +240,8 @@ pipeline:
                       spec:
                         connectorRef: account.harnessImage
                         image: alpine
-                        shell: Bash
-                        command: |
+                        shell: Sh
+                        command: |-
                           # Install Python and Bandit
                           apk add --no-cache python3 py3-pip
                           pip3 install bandit
@@ -266,6 +266,8 @@ pipeline:
                           echo "Scan results saved to /shared/scan_results/bandit_results.json"
                         outputVariables:
                           - name: SCAN_STATUS
+                            type: String
+                            value: SCAN_STATUS
                       timeout: 10m
               - step:
                   identifier: Security_ingest
