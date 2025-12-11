@@ -203,66 +203,55 @@ pipeline:
             spec: {}
           execution:
             steps:
-              - step:
-                  type: Semgrep
-                  name: Semgrep_scan
-                  identifier: Semgrep_scan
-                  spec:
-                    mode: orchestration
-                    config: default
-                    target:
-                      type: repository
-                      workspace: .
-                      detection: auto
-                    advanced:
-                      log:
-                        level: info
-                      fail_on_severity: critical
-                    settings:
-                      report:
-                        enabled: true
-                        format: json
-                        path: semgrep-report.json
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: MarkAsFailure
-                  timeout: 10m
-              - step:
-                  identifier: git_clone
-                  name: Git Clone
-                  type: GitClone
-                  timeout: 10m
-                  spec:
-                    connectorRef: <+pipeline.variables.git_connector>
-                    repoName: <+pipeline.variables.git_repo>
-                    build:
-                      type: branch
+              - parallel:
+                  - step:
+                      type: Semgrep
+                      name: Semgrep_scan
+                      identifier: Semgrep_scan
                       spec:
-                        branch: <+pipeline.variables.git_branch>
-              - step:
-                  identifier: bandit_scan
-                  name: Bandit Security Scan
-                  type: Bandit
-                  timeout: 10m
-                  spec:
-                    config: default
-                    mode: orchestration
-                    target:
-                      type: repository
-                      name: python_codebase
-                      detection: auto
-                    advanced:
-                      fail_on_severity: high
-                      log:
-                        level: info
-                      args:
-                        cli: "--format json --output bandit_results.json"
-                    outputVariables:
-                      - name: scan_results
-                      - name: vulnerability_count
+                        mode: orchestration
+                        config: default
+                        target:
+                          type: repository
+                          workspace: .
+                          detection: auto
+                        advanced:
+                          log:
+                            level: info
+                          fail_on_severity: critical
+                        settings:
+                          report:
+                            enabled: true
+                            format: json
+                            path: semgrep-report.json
+                      failureStrategies:
+                        - onFailure:
+                            errors:
+                              - AllErrors
+                            action:
+                              type: MarkAsFailure
+                      timeout: 10m
+                  - step:
+                      identifier: bandit_scan
+                      name: Bandit Security Scan
+                      type: Bandit
+                      timeout: 10m
+                      spec:
+                        config: default
+                        mode: orchestration
+                        target:
+                          type: repository
+                          name: python_codebase
+                          detection: auto
+                        advanced:
+                          fail_on_severity: high
+                          log:
+                            level: info
+                          args:
+                            cli: "--format json --output bandit_results.json"
+                        outputVariables:
+                          - name: scan_results
+                          - name: vulnerability_count
               - step:
                   type: Run
                   name: Email Notification
@@ -298,7 +287,6 @@ pipeline:
                   timeout: 10m
                   when:
                     stageStatus: All
-            rollbackSteps: []
           failureStrategies:
             - onFailure:
                 errors:
