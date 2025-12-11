@@ -237,8 +237,8 @@ pipeline:
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Bash
-                    command: |
+                    shell: Sh
+                    command: |-
                       # Install jq and mailutils
                       apk add --no-cache jq mailutils
 
@@ -275,6 +275,8 @@ pipeline:
                       EMAIL_TO: sankaranarayanan.m@xenovex.com
                     outputVariables:
                       - name: SCAN_RESULTS
+                        type: String
+                        value: SCAN_RESULTS
                   timeout: 10m
             rollbackSteps: []
     - stage:
