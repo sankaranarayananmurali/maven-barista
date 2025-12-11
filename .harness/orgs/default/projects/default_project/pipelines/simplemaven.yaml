@@ -27,6 +27,12 @@ pipeline:
     - name: maven_version
       type: String
       value: 1.0.0-${timestamp}-${buildNumber}
+    - name: TOKEN
+      type: String
+      value: ""
+    - name: DASHBOARD_ID
+      type: String
+      value: ""
   stages:
     - stage:
         name: Git-Clone
@@ -201,7 +207,7 @@ pipeline:
                     connectorRef: account.harnessImage
                     image: curlimages/curl
                     shell: Sh
-                    command: |-
+                    command: |
                       # Create email content with pipeline execution details
                       cat > email_content.html << EOF
                       <html>
@@ -229,11 +235,11 @@ pipeline:
                       # Send email using curl
                       curl -X POST \
                         -H "Content-Type: application/json" \
-                        -d "{
-                          \"to\": \"sankaranarayanan.m@xenovex.com\",
-                          \"subject\": \"Pipeline Execution Report - <+pipeline.name> #<+pipeline.sequenceId>\",
-                          \"body\": \"$(cat email_content.html | sed 's/"/\\\"/'g | tr -d '\n')\",
-                          \"isHtml\": true
+                        -d "{\
+                          \"to\": \"sankaranarayanan.m@xenovex.com\",\
+                          \"subject\": \"Pipeline Execution Report - <+pipeline.name> #<+pipeline.sequenceId>\",\
+                          \"body\": \"$(cat email_content.html | sed 's/"/\\\"/g' | tr -d '\n')\",\
+                          \"isHtml\": true\
                         }" \
                         "https://notification-service/v1/send"
 
@@ -316,17 +322,23 @@ pipeline:
                         - account._account_all_users
                     isAutoRejectEnabled: false
               - step:
-                  type: Email
-                  name: Email_Notification
-                  identifier: Email_1
-                  spec:
-                    to: sankaranarayanan.m@xenovex.com
-                    cc: ""
-                    subject: Build Approved
-                    body: |-
-                      Hi,
-                      Build is approved!
+                  identifier: Http_1
+                  name: Dashboard Report
+                  type: Http
                   timeout: 10m
+                  spec:
+                    method: GET
+                    url: <+pipeline.variables.nexus_url>/service/rest/v1/components?repository=maven-releases&group=<+pipeline.variables.maven_group_id>&name=<+pipeline.variables.maven_artifact_id>
+                    headers:
+                      - key: Authorization
+                        value: Basic <+pipeline.variables.nexus_username>:<+secrets.getValue("Nexus Password")>
+                      - key: Accept
+                        value: application/json
+                    assertion: <+httpResponseCode> == 200
+                    outputVariables:
+                      - name: dashboard_data
+                        type: String
+                        value: <+httpResponseBody>
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-11 06:24:58 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-11 09:58:54 UTC by sankaranarayanan.m.
