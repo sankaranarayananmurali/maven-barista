@@ -230,58 +230,6 @@ pipeline:
                         action:
                           type: MarkAsFailure
                   timeout: 10m
-              - step:
-                  type: Run
-                  name: Dashboard Scan Report
-                  identifier: dashboard_scan_report
-                  spec:
-                    connectorRef: dockerhub
-                    image: curlimages/curl:latest
-                    shell: Sh
-                    command: |
-                      # Check if semgrep report exists
-                      if [ ! -f semgrep-report.json ]; then
-                        echo "Error: semgrep-report.json file not found"
-                        exit 1
-                      fi
-
-                      # Parse the semgrep report
-                      echo "Parsing semgrep scan results..."
-                      TOTAL_FINDINGS=$(jq '.results | length' semgrep-report.json)
-                      CRITICAL=$(jq '.results[] | select(.extra.severity == "ERROR") | .extra.severity' semgrep-report.json | wc -l)
-                      HIGH=$(jq '.results[] | select(.extra.severity == "WARNING") | .extra.severity' semgrep-report.json | wc -l)
-                      MEDIUM=$(jq '.results[] | select(.extra.severity == "INFO") | .extra.severity' semgrep-report.json | wc -l)
-                      LOW=$(jq '.results[] | select(.extra.severity == "NONE") | .extra.severity' semgrep-report.json | wc -l)
-
-                      # Create JSON payload for dashboard
-                      PAYLOAD="{
-                        \"scan_id\": \"<+pipeline.executionId>\",
-                        \"project\": \"<+project.name>\",
-                        \"pipeline\": \"<+pipeline.name>\",
-                        \"branch\": \"<+pipeline.branch>\",
-                        \"timestamp\": \"$(date -u "%Y-%m-%dT%H:%M:%SZ")\",
-                        \"findings\": {
-                          \"total\": $TOTAL_FINDINGS,
-                          \"critical\": $CRITICAL,
-                          \"high\": $HIGH,
-                          \"medium\": $MEDIUM,
-                          \"low\": $LOW
-                        }
-                      }"
-
-                      echo "Sending data to dashboard..."
-                      curl -X POST \
-                        -H "Content-Type: application/json" \
-                        -H "Authorization: Bearer $TOKEN" \
-                        -d "$PAYLOAD" \
-                        "https://dashboard.example.com/api/scans/$DASHBOARD_ID"
-
-                      echo "Dashboard update complete"
-                    envVariables:
-                      TOKEN: <+pipeline.variables.TOKEN>
-                      DASHBOARD_ID: <+pipeline.variables.DASHBOARD_ID>
-                  timeout: 10m
-            rollbackSteps: []
     - stage:
         name: Build_image
         identifier: Build_image
