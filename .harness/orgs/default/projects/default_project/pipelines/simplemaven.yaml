@@ -201,6 +201,8 @@ pipeline:
           runtime:
             type: Docker
             spec: {}
+          sharedPaths:
+            - /shared/scan_results
           execution:
             steps:
               - parallel:
@@ -232,29 +234,57 @@ pipeline:
                               type: MarkAsFailure
                       timeout: 10m
                   - step:
-                      identifier: bandit_scan
+                      type: Run
                       name: Bandit Security Scan
-                      type: Bandit
-                      timeout: 10m
+                      identifier: bandit_run
                       spec:
-                        mode: orchestration
-                        config: default
-                        target:
-                          type: repository
-                          workspace: .
-                          detection: auto
-                        advanced:
-                          log:
-                            level: info
-                          fail_on_severity: high
-                          args:
-                            cli: "--format json --output bandit_results.json"
-                      failureStrategies:
-                        - onFailure:
-                            errors:
-                              - AllErrors
-                            action:
-                              type: MarkAsFailure
+                        connectorRef: account.harnessImage
+                        image: alpine
+                        shell: Bash
+                        command: |
+                          # Install Python and Bandit
+                          apk add --no-cache python3 py3-pip
+                          pip3 install bandit
+
+                          # Create output directory if it doesn't exist
+                          mkdir -p /shared/scan_results
+
+                          # Run Bandit security scanner
+                          echo "Running Bandit security scanner..."
+                          bandit -r . -f json -o /shared/scan_results/bandit_results.json
+
+                          # Check if scan completed successfully
+                          if [ $? -eq 0 ]; then
+                            echo "Bandit scan completed successfully"
+                            export SCAN_STATUS="success"
+                          else
+                            echo "Bandit scan completed with issues"
+                            export SCAN_STATUS="issues_found"
+                          fi
+
+                          # Display summary of results
+                          echo "Scan results saved to /shared/scan_results/bandit_results.json"
+                        outputVariables:
+                          - name: SCAN_STATUS
+                      timeout: 10m
+              - step:
+                  identifier: Security_ingest
+                  name: Ingest Bandit Security Scan
+                  type: Security
+                  timeout: 10m
+                  spec:
+                    mode: ingestion
+                    tool: bandit
+                    target:
+                      type: repository
+                      workspace: .
+                    settings:
+                      report:
+                        path: /shared/scan_results/bandit_results.json
+                        format: json
+                    advanced:
+                      log:
+                        level: info
               - step:
                   type: Run
                   name: Email Notification
@@ -386,4 +416,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-11 18:13:35 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-11 18:24:02 UTC by sankaranarayanan.m.
