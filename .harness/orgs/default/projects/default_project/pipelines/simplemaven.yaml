@@ -235,10 +235,10 @@ pipeline:
                   name: Dashboard Scan Report
                   identifier: dashboard_scan_report
                   spec:
-                    connectorRef: account.harnessImage
+                    connectorRef: dockerhub
                     image: alpine
-                    shell: Bash
-                    command: |
+                    shell: Sh
+                    command: |-
                       # Install required packages
                       apk add --no-cache curl jq
 
