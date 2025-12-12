@@ -313,6 +313,28 @@ pipeline:
                     imagePullPolicy: Always
                   timeout: 2m
               - step:
+                  type: Run
+                  name: Check Package Files
+                  identifier: check_package_files
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Bash
+                    command: |
+                      echo "Checking for common package manifest files..."
+
+                      # Check for common package manifest files
+                      if find . -name "package.json" -o -name "pom.xml" -o -name "requirements.txt" -o -name "go.mod" -o -name "Cargo.toml" -o -name "composer.json" -o -name "Gemfile.lock" -o -name "build.gradle" -o -name "package-lock.json" -o -name "yarn.lock" -o -name "Pipfile.lock" -o -name "poetry.lock" -o -name "go.sum" -o -name "Cargo.lock" -o -name "composer.lock" | grep -q .; then
+                        echo "Package files found - OSV scanner will run"
+                        export HAS_PACKAGES="true"
+                      else
+                        echo "No package files found - OSV scanner will be skipped"
+                        export HAS_PACKAGES="false"
+                      fi
+                    outputVariables:
+                      - name: HAS_PACKAGES
+                  timeout: 10m
+              - step:
                   type: OsvScanner
                   name: Osv_Scanner
                   identifier: Osv_Scanner
@@ -327,6 +349,11 @@ pipeline:
                       log:
                         level: info
                       fail_on_severity: high
+                  when:
+                    condition: <+execution.steps.check_package_files.output.outputVariables.HAS_PACKAGES> == "true"
+                    stageStatus: Success
+                  timeout: 10m
+            rollbackSteps: []
     - stage:
         name: Build_image
         identifier: Build_image
@@ -416,4 +443,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-12 13:14:17 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-12 13:46:46 UTC by sankaranarayanan.m.
