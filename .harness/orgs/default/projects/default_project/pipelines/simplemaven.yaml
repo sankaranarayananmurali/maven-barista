@@ -372,7 +372,6 @@ pipeline:
                   - onFailure:
                       errors:
                         - AllErrors
-                      action: null
                       type: Retry
                       spec:
                         retryCount: 2
