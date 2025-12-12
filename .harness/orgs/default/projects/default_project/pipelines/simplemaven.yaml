@@ -338,26 +338,22 @@ pipeline:
                   timeout: 10m
               - step:
                   type: OsvScanner
-                  name: Osv_Scanner
+                  name: OSV Scanner
                   identifier: Osv_Scanner
                   spec:
                     mode: orchestration
                     config: default
                     target:
                       type: repository
-                      workspace: .
-                      detection: manual
-                      name: maven-barista
-                      variant: master
+                      detection: auto
                     advanced:
                       log:
                         level: info
-                      fail_on_severity: high
-                  when:
-                    condition: <+execution.steps.check_package_files.output.outputVariables.HAS_PACKAGES> == "true"
-                    stageStatus: Success
+                        fail_on_severity: high
+                    when:
+                      condition: <+execution.steps.check_package_files.output.outputVariables.HAS_PACKAGES> == "true"
+                  stageStatus: Success
                   timeout: 10m
-            rollbackSteps: []
     - stage:
         name: Build_image
         identifier: Build_image
