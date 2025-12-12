@@ -262,7 +262,7 @@ pipeline:
                       # Set output variable for confirmation
                       export NOTIFICATION_SENT="true"
                     envVariables:
-                      EMAIL_TO: <+pipeline.variables.email_recipient>
+                      EMAIL_TO: sankaranarayanan.m@xenovex.com
                       PIPELINE_URL: <+pipeline.executionUrl>
                     outputVariables:
                       - name: NOTIFICATION_SENT
