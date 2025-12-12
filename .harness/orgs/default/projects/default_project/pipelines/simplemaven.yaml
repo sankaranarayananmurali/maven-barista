@@ -236,34 +236,6 @@ pipeline:
                             value: SCAN_STATUS
                             timeout: 10m
               - step:
-                  identifier: spotbugs_analysis
-                  name: SpotBugs Analysis
-                  type: Security
-                  timeout: 10m
-                  spec:
-                    mode: ingestion
-                    tool: bandit
-                    type: repository
-                    scan_type: repo
-                    workspace: .
-                    target:
-                      type: repository
-                      name: <+pipeline.properties.ci.codebase.repoName>
-                      variant: <+pipeline.properties.ci.codebase.build.spec.branch>
-                    settings:
-                      report:
-                        path: /shared/scan_results/bandit_results.json
-                        format: json
-                    advanced:
-                      log:
-                        level: info
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: MarkAsFailure
-              - step:
                   type: Run
                   name: Email Notification
                   identifier: email_notification
@@ -299,7 +271,6 @@ pipeline:
                   timeout: 10m
                   when:
                     stageStatus: All
-            rollbackSteps: []
           failureStrategies:
             - onFailure:
                 errors:
