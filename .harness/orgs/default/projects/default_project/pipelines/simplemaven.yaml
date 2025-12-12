@@ -236,8 +236,8 @@ pipeline:
                             value: SCAN_STATUS
                             timeout: 10m
               - step:
-                  identifier: Security_ingest
-                  name: Ingest Bandit Security Scan
+                  identifier: security_scan
+                  name: Security Scan
                   type: Security
                   timeout: 10m
                   spec:
