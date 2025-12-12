@@ -346,7 +346,9 @@ pipeline:
                     target:
                       type: repository
                       workspace: .
-                      detection: auto
+                      detection: manual
+                      name: maven-barista
+                      variant: master
                     advanced:
                       log:
                         level: info
