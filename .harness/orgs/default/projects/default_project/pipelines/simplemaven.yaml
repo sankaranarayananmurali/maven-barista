@@ -263,8 +263,42 @@ pipeline:
                       Best regards,
                       DevSecOps Team"
                   timeout: 10m
-            rollbackSteps: []
         tags: {}
+    - stage:
+        name: SCA
+        identifier: SCA
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: false
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Owasp
+                  name: Owasp_1
+                  identifier: Owasp_1
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      type: repository
+                      workspace: .
+                      detection: auto
+                    advanced:
+                      log:
+                        level: info
+                      fail_on_severity: high
     - stage:
         name: Build_image
         identifier: Build_image
