@@ -311,17 +311,6 @@ pipeline:
                               - AllErrors
                             action:
                               type: MarkAsFailure
-                        - onFailure:
-                            errors:
-                              - Timeout
-                            action:
-                              type: Retry
-                              spec:
-                                retryCount: 2
-                                retryIntervals:
-                                  - 1m
-                                  - 2m
-                                  - 3m
                   - step:
                       type: OsvScanner
                       name: Code Security Scan
