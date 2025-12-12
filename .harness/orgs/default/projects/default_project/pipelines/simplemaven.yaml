@@ -286,32 +286,32 @@ pipeline:
                   identifier: network_connectivity_check
                   spec:
                     connectorRef: account.harnessImage
-                  image: curlimages/curl:latest
-                  shell: Sh
-                  command: |
-                    echo "Running basic network connectivity tests..."
+                    image: curlimages/curl:latest
+                    shell: Sh
+                    command: |
+                      echo "Running basic network connectivity tests..."
 
-                    echo "1. Checking internet access..."
-                    curl -s -o /dev/null -w "Google status: %{http_code}\n" https://www.google.com
+                      echo "1. Checking internet access..."
+                      curl -s -o /dev/null -w "Google status: %{http_code}\n" https://www.google.com
 
-                    echo "2. Checking DNS resolution..."
-                    nslookup ossindex.sonatype.org || (echo "DNS failed"; exit 1)
+                      echo "2. Checking DNS resolution..."
+                      nslookup ossindex.sonatype.org || (echo "DNS failed"; exit 1)
 
-                    echo "3. Checking connectivity to OSS Index..."
-                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://ossindex.sonatype.org)
-                    echo "OSS Index status: $STATUS"
+                      echo "3. Checking connectivity to OSS Index..."
+                      STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://ossindex.sonatype.org)
+                      echo "OSS Index status: $STATUS"
 
-                    if [ "$STATUS" -eq 200 ]; then
-                        export CONNECTIVITY_STATUS="ok"
-                        echo "Connectivity: OK"
-                    else
-                        export CONNECTIVITY_STATUS="fail"
-                        echo "Connectivity: FAIL"
-                    fi
-                  outputVariables:
-                    - name: CONNECTIVITY_STATUS
-                      imagePullPolicy: Always
-                      timeout: 2m
+                      if [ "$STATUS" -eq 200 ]; then
+                          export CONNECTIVITY_STATUS="ok"
+                          echo "Connectivity: OK"
+                      else
+                          export CONNECTIVITY_STATUS="fail"
+                          echo "Connectivity: FAIL"
+                      fi
+                    outputVariables:
+                      - name: CONNECTIVITY_STATUS
+                    imagePullPolicy: Always
+                  timeout: 2m
               - step:
                   type: Owasp
                   name: OWASP Dependency Check
@@ -435,4 +435,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-12 11:40:44 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-12 12:06:34 UTC by sankaranarayanan.m.
