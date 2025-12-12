@@ -236,8 +236,8 @@ pipeline:
                             value: SCAN_STATUS
                             timeout: 10m
               - step:
-                  identifier: security_scan
-                  name: Security Scan
+                  identifier: spotbugs_analysis
+                  name: SpotBugs Analysis
                   type: Security
                   timeout: 10m
                   spec:
@@ -257,6 +257,12 @@ pipeline:
                     advanced:
                       log:
                         level: info
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: MarkAsFailure
               - step:
                   type: Run
                   name: Email Notification
