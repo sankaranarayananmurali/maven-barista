@@ -288,7 +288,7 @@ pipeline:
                     connectorRef: account.harnessImage
                     image: alpine
                     shell: Sh
-                    command: |
+                    command: |-
                       echo "Checking network connectivity to OSS Index..."
                       STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://ossindex.sonatype.org)
                       echo "HTTP Status: $STATUS"
@@ -301,6 +301,8 @@ pipeline:
                       fi
                     outputVariables:
                       - name: CONNECTIVITY_STATUS
+                        type: String
+                        value: CONNECTIVITY_STATUS
                   timeout: 10m
               - step:
                   type: Owasp
