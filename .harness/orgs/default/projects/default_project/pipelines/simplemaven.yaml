@@ -351,6 +351,8 @@ pipeline:
                       log:
                         level: info
                       fail_on_severity: high
+                    args:
+                      passthrough: "--disableOssIndex"
                   failureStrategies:
                     - onFailure:
                         errors:
