@@ -383,6 +383,52 @@ pipeline:
                           - 30s
                       timeout: 10m
     - stage:
+        name: Secret
+        identifier: Secret
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: false
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Gitleaks
+                  name: Gitleaks_scan
+                  identifier: Gitleaks_scan
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      type: repository
+                      workspace: .
+                      detection: auto
+                    advanced:
+                      log:
+                        level: info
+                      fail_on_severity: high
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: ManualIntervention
+                          spec:
+                            timeout: 1d
+                            onTimeout:
+                              action:
+                                type: MarkAsFailure
+    - stage:
         name: Build_image
         identifier: Build_image
         description: Docker image build and push
