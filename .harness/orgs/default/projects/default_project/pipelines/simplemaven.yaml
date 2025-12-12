@@ -299,6 +299,8 @@ pipeline:
                       log:
                         level: info
                       fail_on_severity: high
+        delegateSelectors:
+          - docker-delegate
     - stage:
         name: Build_image
         identifier: Build_image
