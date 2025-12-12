@@ -267,17 +267,11 @@ pipeline:
     - stage:
         name: SCA
         identifier: SCA
-        description: ""
         type: CI
         delegateSelectors:
           - docker-delegate
         spec:
           cloneCodebase: true
-          caching:
-            enabled: true
-            override: true
-          buildIntelligence:
-            enabled: true
           platform:
             os: Linux
             arch: Amd64
@@ -288,112 +282,59 @@ pipeline:
             steps:
               - step:
                   type: Run
-                  name: Setup Ruby and Network
-                  identifier: setup_ruby_network
+                  name: Pre-check Connectivity
+                  identifier: precheck_connectivity
                   spec:
                     connectorRef: account.harnessImage
                     image: alpine
-                    shell: Bash
+                    shell: Sh
                     command: |
-                      # Install Ruby 3.2.2
-                      echo "Installing Ruby 3.2.2..."
-                      apk add --no-cache curl gcc make g++ libc-dev libffi-dev openssl-dev yaml-dev readline-dev zlib-dev gdbm-dev ncurses-dev
-
-                      # Install RVM
-                      curl -sSL https://get.rvm.io | bash -s stable
-                      source /etc/profile.d/rvm.sh
-                      rvm install "ruby-3.2.2"
-                      rvm use "ruby-3.2.2" --default
-
-                      # Verify Ruby installation
-                      ruby --version
-
-                      # Configure network settings for OWASP scan
-                      echo "Configuring network settings for OWASP scan..."
-
-                      # Set up proxy configuration if needed
-                      export HTTP_PROXY=""
-                      export HTTPS_PROXY=""
-                      export NO_PROXY="localhost,127.0.0.1"
-
-                      # Ensure DNS resolution works properly
-                      cat > /etc/resolv.conf << EOF
-                      nameserver 8.8.8.8
-                      nameserver 8.8.4.4
-                      EOF
-
-                      # Test connectivity to Sonatype OSS Index
-                      echo "Testing connectivity to Sonatype OSS Index..."
-                      curl -s -o /dev/null -w "%{http_code}\n" https://ossindex.sonatype.org
-
-                      # Export network status
-                      if [ $? -eq 0 ]; then
-                        export NETWORK_STATUS="connected"
-                        echo "Network connectivity successful"
+                      echo "Checking network connectivity to OSS Index..."
+                      STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://ossindex.sonatype.org)
+                      echo "HTTP Status: $STATUS"
+                      if [ "$STATUS" -ne 200 ]; then
+                        echo "ERROR: Cannot reach Sonatype OSS Index. Scan may fail."
+                        export CONNECTIVITY_STATUS="failed"
                       else
-                        export NETWORK_STATUS="disconnected"
-                        echo "Network connectivity failed"
+                        echo "Successfully connected to Sonatype OSS Index."
+                        export CONNECTIVITY_STATUS="success"
                       fi
                     outputVariables:
-                      - name: NETWORK_STATUS
+                      - name: CONNECTIVITY_STATUS
                   timeout: 10m
-              - parallel:
-                  - step:
-                      type: Owasp
-                      name: Owasp_scan
-                      identifier: Owasp_1
-                      spec:
-                        mode: orchestration
-                        config: default
-                        target:
-                          type: repository
-                          workspace: .
-                          detection: manual
-                          name: maven-barista
-                          variant: main
-                        advanced:
-                          log:
-                            level: info
-                          fail_on_severity: high
-                          args:
-                            passthrough: "--proxy http://your-proxy:port"
-                      timeout: 10m
-                      failureStrategies:
-                        - onFailure:
-                            errors:
-                              - AllErrors
-                            action:
-                              type: Retry
-                              spec:
-                                retryCount: 3
-                                retryIntervals:
-                                  - 30s
-                                  - 60s
-                                  - 120s
-                                onRetryFailure:
-                                  action:
-                                    type: MarkAsFailure
-                  - step:
-                      type: OsvScanner
-                      name: Code Security Scan
-                      identifier: sonarqube_scan
-                      spec:
-                        mode: orchestration
-                        config: default
-                        target:
-                          type: repository
-                          workspace: <+codebase.workspace>
-                          detection: auto
-                        advanced:
-                          fail_on_severity: critical
-                        connectorRef: <+input>
-                      timeout: 10m
-                      failureStrategies:
-                        - onFailure:
-                            errors:
-                              - AllErrors
-                            action:
-                              type: Abort
+              - step:
+                  type: Owasp
+                  name: OWASP Dependency Check
+                  identifier: owasp_scan
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      type: repository
+                      workspace: .
+                      detection: auto
+                    advanced:
+                      log:
+                        level: info
+                      fail_on_severity: high
+                      args:
+                        passthrough: |
+                          --noupdate --ossindexUsername ${OSS_USER} --ossindexPassword ${OSS_TOKEN} --disableBundlerAudit --disableAssembly --disableNodeAudit
+                  timeout: 20m
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: Retry
+                          spec:
+                            retryCount: 2
+                            retryIntervals:
+                              - 30s
+                              - 60s
+                            onRetryFailure:
+                              action:
+                                type: MarkAsFailure
             rollbackSteps: []
     - stage:
         name: Build_image
@@ -484,4 +425,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-12 11:25:24 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-12 11:40:44 UTC by sankaranarayanan.m.
