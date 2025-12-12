@@ -282,28 +282,36 @@ pipeline:
             steps:
               - step:
                   type: Run
-                  name: Pre-check Connectivity
-                  identifier: precheck_connectivity
+                  name: Network Connectivity Check
+                  identifier: network_connectivity_check
                   spec:
                     connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Sh
-                    command: |-
-                      echo "Checking network connectivity to OSS Index..."
-                      STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://ossindex.sonatype.org)
-                      echo "HTTP Status: $STATUS"
-                      if [ "$STATUS" -ne 200 ]; then
-                        echo "ERROR: Cannot reach Sonatype OSS Index. Scan may fail."
-                        export CONNECTIVITY_STATUS="failed"
-                      else
-                        echo "Successfully connected to Sonatype OSS Index."
-                        export CONNECTIVITY_STATUS="success"
-                      fi
-                    outputVariables:
-                      - name: CONNECTIVITY_STATUS
-                        type: String
-                        value: CONNECTIVITY_STATUS
-                  timeout: 10m
+                  image: curlimages/curl:latest
+                  shell: Sh
+                  command: |
+                    echo "Running basic network connectivity tests..."
+
+                    echo "1. Checking internet access..."
+                    curl -s -o /dev/null -w "Google status: %{http_code}\n" https://www.google.com
+
+                    echo "2. Checking DNS resolution..."
+                    nslookup ossindex.sonatype.org || (echo "DNS failed"; exit 1)
+
+                    echo "3. Checking connectivity to OSS Index..."
+                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://ossindex.sonatype.org)
+                    echo "OSS Index status: $STATUS"
+
+                    if [ "$STATUS" -eq 200 ]; then
+                        export CONNECTIVITY_STATUS="ok"
+                        echo "Connectivity: OK"
+                    else
+                        export CONNECTIVITY_STATUS="fail"
+                        echo "Connectivity: FAIL"
+                    fi
+                  outputVariables:
+                    - name: CONNECTIVITY_STATUS
+                      imagePullPolicy: Always
+                      timeout: 2m
               - step:
                   type: Owasp
                   name: OWASP Dependency Check
