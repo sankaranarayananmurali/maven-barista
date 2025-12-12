@@ -345,15 +345,20 @@ pipeline:
                     config: default
                     target:
                       type: repository
+                      workspace: /harness
                       detection: auto
                     advanced:
                       log:
                         level: info
-                        fail_on_severity: high
-                    when:
-                      condition: <+execution.steps.check_package_files.output.outputVariables.HAS_PACKAGES> == "true"
+                      fail_on_severity: high
                   stageStatus: Success
                   timeout: 10m
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: MarkAsFailure
     - stage:
         name: Build_image
         identifier: Build_image
