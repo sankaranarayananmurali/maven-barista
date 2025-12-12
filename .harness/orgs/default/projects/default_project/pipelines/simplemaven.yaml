@@ -286,39 +286,61 @@ pipeline:
             spec: {}
           execution:
             steps:
-              - step:
-                  type: Owasp
-                  name: Owasp_scan
-                  identifier: Owasp_1
-                  spec:
-                    mode: orchestration
-                    config: default
-                    target:
-                      type: repository
-                      workspace: .
-                      detection: manual
-                      name: maven-barista
-                      variant: main
-                    advanced:
-                      log:
-                        level: info
-                      fail_on_severity: high
-                  timeout: 10m
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: MarkAsFailure
-                    - onFailure:
-                        errors:
-                          - Timeout
-                        action:
-                          type: Retry
-                          spec:
-                            retryCount: 2
-                            retryIntervals:
-                              - 1m
+              - parallel:
+                  - step:
+                      type: Owasp
+                      name: Owasp_scan
+                      identifier: Owasp_1
+                      spec:
+                        mode: orchestration
+                        config: default
+                        target:
+                          type: repository
+                          workspace: .
+                          detection: manual
+                          name: maven-barista
+                          variant: main
+                        advanced:
+                          log:
+                            level: info
+                          fail_on_severity: high
+                      timeout: 10m
+                      failureStrategies:
+                        - onFailure:
+                            errors:
+                              - AllErrors
+                            action:
+                              type: MarkAsFailure
+                        - onFailure:
+                            errors:
+                              - Timeout
+                            action:
+                              type: Retry
+                              spec:
+                                retryCount: 2
+                                retryIntervals:
+                                  - 1m
+                  - step:
+                      type: OsvScanner
+                      name: Code Security Scan
+                      identifier: sonarqube_scan
+                      spec:
+                        mode: orchestration
+                        config: default
+                        target:
+                          type: repository
+                          workspace: <+codebase.workspace>
+                          detection: auto
+                        advanced:
+                          fail_on_severity: critical
+                        connectorRef: <+input>
+                      timeout: 10m
+                      failureStrategies:
+                        - onFailure:
+                            errors:
+                              - AllErrors
+                            action:
+                              type: Abort
             rollbackSteps: []
     - stage:
         name: Build_image
