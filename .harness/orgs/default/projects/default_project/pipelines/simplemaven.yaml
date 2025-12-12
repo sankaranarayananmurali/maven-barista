@@ -269,8 +269,10 @@ pipeline:
         identifier: SCA
         description: ""
         type: CI
+        delegateSelectors:
+          - docker-delegate
         spec:
-          cloneCodebase: false
+          cloneCodebase: true
           caching:
             enabled: true
             override: true
@@ -294,13 +296,30 @@ pipeline:
                     target:
                       type: repository
                       workspace: .
-                      detection: auto
+                      detection: manual
+                      name: maven-barista
+                      variant: main
                     advanced:
                       log:
                         level: info
                       fail_on_severity: high
-        delegateSelectors:
-          - docker-delegate
+                  timeout: 10m
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: MarkAsFailure
+                    - onFailure:
+                        errors:
+                          - Timeout
+                        action:
+                          type: Retry
+                          spec:
+                            retryCount: 2
+                            retryIntervals:
+                              - 1m
+            rollbackSteps: []
     - stage:
         name: Build_image
         identifier: Build_image
@@ -390,4 +409,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-11 20:39:37 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-12 10:00:10 UTC by sankaranarayanan.m.
