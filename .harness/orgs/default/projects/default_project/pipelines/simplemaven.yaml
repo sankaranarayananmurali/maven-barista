@@ -286,6 +286,57 @@ pipeline:
             spec: {}
           execution:
             steps:
+              - step:
+                  type: Run
+                  name: Setup Ruby and Network
+                  identifier: setup_ruby_network
+                  spec:
+                    connectorRef: account.harnessImage
+                    image: alpine
+                    shell: Bash
+                    command: |
+                      # Install Ruby 3.2.2
+                      echo "Installing Ruby 3.2.2..."
+                      apk add --no-cache curl gcc make g++ libc-dev libffi-dev openssl-dev yaml-dev readline-dev zlib-dev gdbm-dev ncurses-dev
+
+                      # Install RVM
+                      curl -sSL https://get.rvm.io | bash -s stable
+                      source /etc/profile.d/rvm.sh
+                      rvm install "ruby-3.2.2"
+                      rvm use "ruby-3.2.2" --default
+
+                      # Verify Ruby installation
+                      ruby --version
+
+                      # Configure network settings for OWASP scan
+                      echo "Configuring network settings for OWASP scan..."
+
+                      # Set up proxy configuration if needed
+                      export HTTP_PROXY=""
+                      export HTTPS_PROXY=""
+                      export NO_PROXY="localhost,127.0.0.1"
+
+                      # Ensure DNS resolution works properly
+                      cat > /etc/resolv.conf << EOF
+                      nameserver 8.8.8.8
+                      nameserver 8.8.4.4
+                      EOF
+
+                      # Test connectivity to Sonatype OSS Index
+                      echo "Testing connectivity to Sonatype OSS Index..."
+                      curl -s -o /dev/null -w "%{http_code}\n" https://ossindex.sonatype.org
+
+                      # Export network status
+                      if [ $? -eq 0 ]; then
+                        export NETWORK_STATUS="connected"
+                        echo "Network connectivity successful"
+                      else
+                        export NETWORK_STATUS="disconnected"
+                        echo "Network connectivity failed"
+                      fi
+                    outputVariables:
+                      - name: NETWORK_STATUS
+                  timeout: 10m
               - parallel:
                   - step:
                       type: Owasp
@@ -304,13 +355,24 @@ pipeline:
                           log:
                             level: info
                           fail_on_severity: high
+                          args:
+                            passthrough: "--proxy http://your-proxy:port"
                       timeout: 10m
                       failureStrategies:
                         - onFailure:
                             errors:
                               - AllErrors
                             action:
-                              type: MarkAsFailure
+                              type: Retry
+                              spec:
+                                retryCount: 3
+                                retryIntervals:
+                                  - 30s
+                                  - 60s
+                                  - 120s
+                                onRetryFailure:
+                                  action:
+                                    type: MarkAsFailure
                   - step:
                       type: OsvScanner
                       name: Code Security Scan
@@ -422,4 +484,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-12 10:12:55 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-12 11:25:24 UTC by sankaranarayanan.m.
