@@ -352,13 +352,33 @@ pipeline:
                         level: info
                       fail_on_severity: high
                     args:
-                      passthrough: "--disableOssIndex"
-                  failureStrategies:
-                    - onFailure:
-                        errors:
-                          - AllErrors
-                        action:
-                          type: MarkAsFailure
+                      cli: |
+                        --enableExperimental
+                        --format JSON
+                        --scan .
+                        --out /tmp/output.json
+                        --connectionTimeout 60000
+                        --readTimeout 300000
+                resources:
+                  limits:
+                    memory: 4Gi
+                    cpu: "2.0"
+                  requests:
+                    memory: 2Gi
+                    cpu: "1.0"
+                envVariables:
+                  JAVA_OPTS: "-Xmx3g"
+                failureStrategies:
+                  - onFailure:
+                      errors:
+                        - AllErrors
+                      action: null
+                      type: Retry
+                      spec:
+                        retryCount: 2
+                        retryIntervals:
+                          - 30s
+                      timeout: 10m
     - stage:
         name: Build_image
         identifier: Build_image
