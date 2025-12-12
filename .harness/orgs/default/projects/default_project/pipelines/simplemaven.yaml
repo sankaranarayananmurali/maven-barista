@@ -63,7 +63,7 @@ pipeline:
       value: ""
     - name: EMAIL_TO
       type: String
-      value: ""
+      value: sankaranarayanan.m@xenovex.com
   stages:
     - stage:
         name: mvn-build
