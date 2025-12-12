@@ -286,7 +286,7 @@ pipeline:
             steps:
               - step:
                   type: Owasp
-                  name: Owasp_1
+                  name: Owasp_scan
                   identifier: Owasp_1
                   spec:
                     mode: orchestration
