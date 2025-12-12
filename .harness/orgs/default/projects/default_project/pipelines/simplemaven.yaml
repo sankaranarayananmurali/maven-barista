@@ -320,6 +320,8 @@ pipeline:
                                 retryCount: 2
                                 retryIntervals:
                                   - 1m
+                                  - 2m
+                                  - 3m
                   - step:
                       type: OsvScanner
                       name: Code Security Scan
@@ -431,4 +433,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-12 10:00:10 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-12 10:11:09 UTC by sankaranarayanan.m.
