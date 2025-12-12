@@ -337,22 +337,20 @@ pipeline:
                         value: HAS_PACKAGES
                   timeout: 10m
               - step:
-                  type: OsvScanner
-                  name: OSV Scanner
-                  identifier: Osv_Scanner
+                  type: Owasp
+                  name: Owasp_scan
+                  identifier: Owasp_scan
                   spec:
                     mode: orchestration
                     config: default
                     target:
                       type: repository
-                      workspace: "\" \""
+                      workspace: .
                       detection: auto
                     advanced:
                       log:
                         level: info
                       fail_on_severity: high
-                  stageStatus: Success
-                  timeout: 10m
                   failureStrategies:
                     - onFailure:
                         errors:
