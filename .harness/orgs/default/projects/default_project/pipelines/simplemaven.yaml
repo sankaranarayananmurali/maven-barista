@@ -359,7 +359,8 @@ pipeline:
                     cc: ""
                     subject: "Build Approval "
                     body: "Build approved! "
-                    toUserGroups: []
+                    toUserGroups:
+                      - account._account_all_users
                     delegateSelectors:
                       - docker-delegate
                   timeout: 10m
