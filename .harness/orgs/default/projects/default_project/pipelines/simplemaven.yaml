@@ -237,46 +237,20 @@ pipeline:
                             timeout: 10m
               - step:
                   type: Run
-                  name: Email Notification
-                  identifier: email_notification
+                  name: Email Notification regarding build Approval
+                  identifier: Email_Notification_regarding_build_Approval
                   spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Sh
-                    command: |-
-                      # Check if email recipient is set
-                      if [ -z "${EMAIL_TO}" ]; then
-                        echo "Error: Email recipient not specified"
-                        exit 1
-                      fi
-
-                      # Format email content
-                      echo "Preparing email notification for ${EMAIL_TO}"
-                      echo "Subject: Security Scan Results - Status: Completed"
-                      echo "Body: Security scan completed with status: Completed. View details at ${PIPELINE_URL}"
-
-                      # In a real scenario, this would use an email sending utility
-                      # For demonstration, we'll just log the notification
-                      echo "Email notification sent successfully to ${EMAIL_TO}"
-
-                      # Set output variable for confirmation
-                      export NOTIFICATION_SENT="true"
-                    envVariables:
-                      EMAIL_TO: sankaranarayanan.m@xenovex.com
-                      PIPELINE_URL: <+pipeline.executionUrl>
-                    outputVariables:
-                      - name: NOTIFICATION_SENT
-                        type: String
-                        value: NOTIFICATION_SENT
+                    to: sankaranarayan.m@xenovex.com
+                    cc: ""
+                    subject: "Build Approval "
+                    body: "Build approved! "
+                    toUserGroups:
+                      - account._account_all_users
+                    delegateSelectors:
+                      - docker-delegate
                   timeout: 10m
-                  when:
-                    stageStatus: All
-          failureStrategies:
-            - onFailure:
-                errors:
-                  - AllErrors
-                action:
-                  type: Abort
+            rollbackSteps: []
+        tags: {}
     - stage:
         name: Build_image
         identifier: Build_image
