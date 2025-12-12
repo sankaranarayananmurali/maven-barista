@@ -240,14 +240,28 @@ pipeline:
                   name: Email Notification regarding build Approval
                   identifier: Email_Notification_regarding_build_Approval
                   spec:
-                    to: sankaranarayan.m@xenovex.com
-                    cc: ""
-                    subject: "Build Approval "
-                    body: "Build approved! "
-                    toUserGroups:
-                      - account._account_all_users
-                    delegateSelectors:
-                      - docker-delegate
+                    shell: Sh
+                    command: |-
+                      ACCOUNT_ID=""
+                      DASHBOARD_URL="https://app.harness.io/ng/account/og-hWp2rRoi0v5w8zREwFQ/module/ci/orgs/default/projects/default_project/pipelines/simplemaven/executions/RTGWv2RkSuyHgo9OBYm9uw/security"
+                      RECIPIENTS="sankaranarayanan.m@xenovex.com"
+                      SUBJECT="Harness Vulnerabilities Dashboard - Security Report"
+
+                      # Email content
+                      EMAIL_BODY="Hi Team,
+
+                      Please find the link to the Harness Vulnerabilities Dashboard:
+
+                      Dashboard URL: ${DASHBOARD_URL}
+
+                      This dashboard provides insights into security vulnerabilities, trends, and remediation status.
+
+                      Please review and take action on high-priority vulnerabilities.
+
+                      Generated on: $(date)
+
+                      Best regards,
+                      DevSecOps Team"
                   timeout: 10m
             rollbackSteps: []
         tags: {}
