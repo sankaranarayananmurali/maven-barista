@@ -98,38 +98,6 @@ pipeline:
         delegateSelectors:
           - docker-delegate
     - stage:
-        name: Test
-        identifier: Test
-        description: ""
-        type: CI
-        spec:
-          cloneCodebase: false
-          caching:
-            enabled: true
-            override: true
-          buildIntelligence:
-            enabled: true
-          platform:
-            os: Linux
-            arch: Amd64
-          runtime:
-            type: Docker
-            spec: {}
-          execution:
-            steps:
-              - step:
-                  type: Test
-                  name: Maven_Test
-                  identifier: Maven_Test
-                  spec:
-                    connectorRef: dockerhub
-                    image: maven:3.9.9-eclipse-temurin-17
-                    shell: Sh
-                    command: mvn test
-                    intelligenceMode: true
-        delegateSelectors:
-          - docker-delegate
-    - stage:
         name: mvn-build
         identifier: mvnbuild
         description: Maven build and Semgrep scan
@@ -193,7 +161,7 @@ pipeline:
                       mvn versions:set -DnewVersion=${DYNAMIC_VERSION} -DgenerateBackupPoms=false
 
                       # Run maven clean deploy which will automatically upload to Nexus
-                      mvn clean deploy
+                      mvn clean test deploy
 
                       # Export the dynamic version as an output variable
                       export MAVEN_VERSION=${DYNAMIC_VERSION}
