@@ -202,39 +202,23 @@ pipeline:
                               type: MarkAsFailure
                       timeout: 10m
                   - step:
-                      type: Run
-                      name: Bandit Security Scan
-                      identifier: bandit_run
+                      type: Bandit
+                      name: Bandit_security_scan
+                      identifier: Bandit_security_scan
                       spec:
-                        connectorRef: account.harnessImage
-                        image: python:3.12-alpine
-                        shell: Sh
-                        command: |-
-                          set -ex
-                           echo "Installing Bandit..."
-                           pip install --no-cache-dir bandit
-
-                           echo "Creating output directory..."
-                           mkdir -p /shared/scan_results
-
-                           echo "Running Bandit security scanner..."
-                           bandit -r . -f json -o /shared/scan_results/bandit_results.json
-                           STATUS=$?
-
-                           if [ $STATUS -eq 0 ]; then
-                           echo "Bandit scan completed successfully"
-                             export SCAN_STATUS="success"
-                           else
-                             echo "Bandit scan completed with issues"
-                             export SCAN_STATUS="issues_found"
-                           fi
-
-                           echo "Scan results saved to /shared/scan_results/bandit_results.json"
-                        outputVariables:
-                          - name: SCAN_STATUS
-                            type: String
-                            value: SCAN_STATUS
-                            timeout: 10m
+                        mode: ingestion
+                        config: default
+                        target:
+                          type: repository
+                          detection: manual
+                          name: maven-barista
+                          variant: master
+                        advanced:
+                          log:
+                            level: info
+                          fail_on_severity: critical
+                        ingestion:
+                          file: /tmp/output.json
               - step:
                   type: Run
                   name: Email Notification regarding build Approval
