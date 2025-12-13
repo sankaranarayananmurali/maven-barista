@@ -13,17 +13,19 @@
     <name>Static Web Project</name>
     <description>A simple static web project packaged as a WAR</description>
 
+    <!-- ================= BUILD ================= -->
     <build>
         <finalName>barista-webapp</finalName>
         <plugins>
-            <!-- WAR plugin to create a WAR file -->
+
+            <!-- WAR plugin -->
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-war-plugin</artifactId>
                 <version>3.4.0</version>
                 <configuration>
                     <failOnMissingWebXml>false</failOnMissingWebXml>
                     <webResources>
-                        <!-- Optionally exclude specific files -->
                         <resource>
                             <directory>src/main/webapp</directory>
                             <excludes>
@@ -32,32 +34,38 @@
                         </resource>
                     </webResources>
                 </configuration>
-                         <plugin>
-      <groupId>org.apache.maven.plugins</groupId>
-      <artifactId>maven-surefire-plugin</artifactId>
-      <version>3.2.5</version>
-    </plugin>
-
             </plugin>
+
+            <!-- Surefire plugin (for tests) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+
         </plugins>
     </build>
-         <dependencies>
-  <dependency>
-    <groupId>org.junit.jupiter</groupId>
-    <artifactId>junit-jupiter</artifactId>
-    <version>5.10.1</version>
-    <scope>test</scope>
-  </dependency>
-</dependencies>
+
+    <!-- ================= DEPENDENCIES ================= -->
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.1</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!-- ================= NEXUS DEPLOY ================= -->
     <distributionManagement>
-   <repository>
-   <id>nexus-releases</id>
-   <url>http://10.10.10.20:8081/repository/maven-releases/</url>
-   </repository>
-   <snapshotRepository>
-   <id>nexus-snapshots</id>
-   <url>http://10.10.10.20:8081/repository/maven-snapshots/</url>
-   </snapshotRepository>
-   </distributionManagement>
-         
+        <repository>
+            <id>nexus-releases</id>
+            <url>http://10.10.10.20:8081/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>nexus-snapshots</id>
+            <url>http://10.10.10.20:8081/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
+
 </project>
