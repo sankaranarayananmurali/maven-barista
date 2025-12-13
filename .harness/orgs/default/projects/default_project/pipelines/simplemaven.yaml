@@ -188,7 +188,7 @@ pipeline:
                         advanced:
                           log:
                             level: info
-                          fail_on_severity: critical
+                          fail_on_severity: high
                         settings:
                           report:
                             enabled: true
@@ -215,7 +215,7 @@ pipeline:
                         advanced:
                           log:
                             level: info
-                          fail_on_severity: critical
+                          fail_on_severity: high
                         settings:
                           report:
                             enabled: true
@@ -237,14 +237,6 @@ pipeline:
                   spec:
                     to:
                       - sankaranarayanan.m@xenovex.com
-      subject: ❌ Security Scan Failed | <+pipeline.name>
-      body: |
-        The security scan failed policy checks.
-
-        Execution Link:
-        <+pipeline.execution.url>
-
-        tags: {}
     - stage:
         name: SCA
         identifier: SCA
