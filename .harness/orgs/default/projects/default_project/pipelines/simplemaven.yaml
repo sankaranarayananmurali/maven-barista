@@ -122,6 +122,8 @@ pipeline:
                   name: Maven_Test
                   identifier: Maven_Test
                   spec:
+                    connectorRef: dockerhub
+                    image: maven:3.9.6
                     shell: Sh
                     command: mvn test
                     intelligenceMode: true
