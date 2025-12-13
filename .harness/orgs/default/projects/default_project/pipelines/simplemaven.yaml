@@ -193,7 +193,7 @@ pipeline:
                           report:
                             enabled: true
                             format: json
-                            path: semgrep-report.json
+                            path: semgrep-report.sarif
                       failureStrategies:
                         - onFailure:
                             errors:
@@ -206,19 +206,28 @@ pipeline:
                       name: Bandit_security_scan
                       identifier: Bandit_security_scan
                       spec:
-                        mode: ingestion
+                        mode: orchestration
                         config: default
                         target:
                           type: repository
-                          detection: manual
-                          name: maven-barista
-                          variant: master
+                          workspace: .
+                          detection: auto
                         advanced:
                           log:
                             level: info
                           fail_on_severity: critical
-                        ingestion:
-                          enabled: true
+                        settings:
+                          report:
+                            enabled: true
+                            format: json
+                            path: bandit-report.sarif
+                      failureStrategies:
+                        - onFailure:
+                            errors:
+                              - AllErrors
+                            action:
+                              type: MarkAsFailure
+                      timeout: 10m
               - step:
                   type: Run
                   name: Email Notification regarding build Approval
