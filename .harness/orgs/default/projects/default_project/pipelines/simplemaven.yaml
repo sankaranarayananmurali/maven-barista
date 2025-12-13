@@ -230,32 +230,20 @@ pipeline:
                       timeout: 10m
               - step:
                   type: Run
-                  name: Email Notification regarding build Approval
-                  identifier: Email_Notification_regarding_build_Approval
+                  identifier: Scan_Email_notification
+                  name: Notify on Scan Failure
+                  when:
+                    stageStatus: Failure
                   spec:
-                    shell: Sh
-                    command: |-
-                      ACCOUNT_ID=""
-                      DASHBOARD_URL="https://app.harness.io/ng/account/og-hWp2rRoi0v5w8zREwFQ/module/ci/orgs/default/projects/default_project/pipelines/simplemaven/executions/RTGWv2RkSuyHgo9OBYm9uw/security"
-                      RECIPIENTS="sankaranarayanan.m@xenovex.com"
-                      SUBJECT="Harness Vulnerabilities Dashboard - Security Report"
+                    to:
+                      - sankaranarayanan.m@xenovex.com
+      subject: ❌ Security Scan Failed | <+pipeline.name>
+      body: |
+        The security scan failed policy checks.
 
-                      # Email content
-                      EMAIL_BODY="Hi Team,
+        Execution Link:
+        <+pipeline.execution.url>
 
-                      Please find the link to the Harness Vulnerabilities Dashboard:
-
-                      Dashboard URL: ${DASHBOARD_URL}
-
-                      This dashboard provides insights into security vulnerabilities, trends, and remediation status.
-
-                      Please review and take action on high-priority vulnerabilities.
-
-                      Generated on: $(date)
-
-                      Best regards,
-                      DevSecOps Team"
-                  timeout: 10m
         tags: {}
     - stage:
         name: SCA
