@@ -266,8 +266,8 @@ pipeline:
                   when:
                     stageStatus: Failure
                   spec:
-                    to:
-                      - sankaranarayanan.m@xenovex.com
+                    shell: Sh
+                    command: Scan failed
     - stage:
         name: SCA
         identifier: SCA
