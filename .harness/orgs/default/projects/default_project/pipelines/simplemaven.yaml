@@ -220,7 +220,7 @@ pipeline:
                           report:
                             enabled: true
                             format: json
-                            path: bandit-report.sarif
+                            path: bandit-report.json
                       failureStrategies:
                         - onFailure:
                             errors:
