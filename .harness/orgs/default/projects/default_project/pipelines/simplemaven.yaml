@@ -66,6 +66,36 @@ pipeline:
       value: sankaranarayanan.m@xenovex.com
   stages:
     - stage:
+        name: Git_clone
+        identifier: Git_clone
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: GitClone
+                  name: GitClone
+                  identifier: GitClone
+                  spec:
+                    connectorRef: mavengithubconnector
+                    build:
+                      type: branch
+                      spec:
+                        branch: master
+    - stage:
         name: mvn-build
         identifier: mvnbuild
         description: Maven build and Semgrep scan
@@ -82,8 +112,7 @@ pipeline:
             arch: Amd64
           runtime:
             type: Docker
-            spec:
-              harnessImageConnectorRef: dockerhub
+            spec: {}
           execution:
             steps:
               - step:
