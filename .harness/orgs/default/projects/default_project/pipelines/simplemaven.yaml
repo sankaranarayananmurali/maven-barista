@@ -218,7 +218,7 @@ pipeline:
                             level: info
                           fail_on_severity: critical
                         ingestion:
-                          file: /tmp/output.json
+                          enabled: true
               - step:
                   type: Run
                   name: Email Notification regarding build Approval
