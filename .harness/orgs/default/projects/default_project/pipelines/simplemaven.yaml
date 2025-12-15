@@ -431,7 +431,7 @@ pipeline:
                             <body>
                               <p>Hi Team,</p>
                               <p>The vulnerability scan has completed.</p>
-                              <p>View the report here: <a href="<+pipeline.url>">Security Report</a></p>
+                              <p>View the report here: <a href="<+pipeline.url>#securityTests"> View Vulnerability Dashboard </a>
                               <p>Pipeline: <+pipeline.name></p>
                               <p>Execution: <a href="<+pipeline.url>">View Execution</a></p>
                             </body>
