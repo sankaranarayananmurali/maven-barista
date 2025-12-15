@@ -518,7 +518,7 @@ pipeline:
                     privileged: true
                     image:
                       type: docker_v2
-                      tag: "285"
+                      tag: ${buildNumber}
                       name: sankaranarayananmurali/maven-v1
                       domain: docker.io
         delegateSelectors:
