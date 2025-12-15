@@ -426,11 +426,16 @@ pipeline:
                     body: |-
                       Hi Team,
                               
-                              The vulnerability scan has completed. 
-                              View the report here: <+pipeline.executionUrl>
-                              
-                              Pipeline: <+pipeline.name>
-                              Execution: <+pipeline.executionUrl>
+                              <!DOCTYPE html>
+                            <html>
+                            <body>
+                              <p>Hi Team,</p>
+                              <p>The vulnerability scan has completed.</p>
+                              <p>View the report here: <a href="<+pipeline.url>">Security Report</a></p>
+                              <p>Pipeline: <+pipeline.name></p>
+                              <p>Execution: <a href="<+pipeline.url>">View Execution</a></p>
+                            </body>
+                            </html>
                     toUserGroups:
                       - account._account_all_users
                   timeout: 10m
