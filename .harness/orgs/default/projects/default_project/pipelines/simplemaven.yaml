@@ -518,9 +518,11 @@ pipeline:
                     privileged: true
                     image:
                       type: docker_v2
-                      tag: buildNumber
+                      tag: <+pipeline.sequenceId>
                       name: sankaranarayananmurali/maven-v1
                       domain: docker.io
+                  timeout: 10m
+            rollbackSteps: []
         delegateSelectors:
           - docker-delegate
     - stage:
@@ -596,4 +598,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-12 13:46:46 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-15 06:37:28 UTC by sankaranarayanan.m.
