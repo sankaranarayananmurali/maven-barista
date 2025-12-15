@@ -1,0 +1,491 @@
+pipeline:
+  name: simple-maven
+  identifier: simplemaven
+  projectIdentifier: default_project
+  orgIdentifier: default
+  tags:
+    ai_generated: "true"
+  properties:
+    ci:
+      codebase:
+        connectorRef: mavengithubconnector
+        build: <+input>
+        sparseCheckout: []
+  notificationRules:
+    - name: Pipeline Success Notification
+      enabled: true
+      pipelineEvents:
+        - type: PipelineSuccess
+      notificationMethod:
+        type: Email
+        spec:
+          recipients:
+            - <+pipeline.variables.EMAIL_TO>
+    - name: Pipeline Failure Notification
+      enabled: true
+      pipelineEvents:
+        - type: PipelineFailed
+      notificationMethod:
+        type: Email
+        spec:
+          recipients:
+            - <+pipeline.variables.EMAIL_TO>
+  variables:
+    - name: nexus_url
+      type: String
+      value: http://10.10.10.20:8081/
+    - name: nexus_username
+      type: String
+      value: admin
+    - name: maven_group_id
+      type: String
+      value: com.example
+    - name: maven_artifact_id
+      type: String
+      value: maven-app
+    - name: maven_version
+      type: String
+      value: 1.0.0-${timestamp}-${buildNumber}
+    - name: TOKEN
+      type: String
+      value: ""
+    - name: DASHBOARD_ID
+      type: String
+      value: ""
+    - name: SMTP_SERVER
+      type: String
+      value: ""
+    - name: SMTP_PORT
+      type: String
+      value: ""
+    - name: EMAIL_FROM
+      type: String
+      value: ""
+    - name: EMAIL_TO
+      type: String
+      value: sankaranarayanan.m@xenovex.com
+  stages:
+    - stage:
+        name: Git_clone
+        identifier: Git_clone
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: GitClone
+                  name: GitClone
+                  identifier: GitClone
+                  spec:
+                    connectorRef: mavengithubconnector
+                    build:
+                      type: branch
+                      spec:
+                        branch: master
+        delegateSelectors:
+          - docker-delegate
+    - stage:
+        name: mvn-build
+        identifier: mvnbuild
+        description: Maven build and Semgrep scan
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: maven_build
+                  identifier: maven_build
+                  spec:
+                    connectorRef: dockerhub
+                    image: maven:3.9.6
+                    shell: Sh
+                    command: |
+                      # Create .m2 directory if it doesn't exist
+                      mkdir -p ~/.m2
+
+                      # Generate settings.xml file with nexus-releases and nexus-snapshots server configurations
+                      cat > ~/.m2/settings.xml << EOF
+                      <?xml version="1.0" encoding="UTF-8"?>
+                      <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                                http://maven.apache.org/xsd/settings-1.0.0.xsd">
+                        <servers>
+                          <server>
+                            <id>nexus-releases</id>
+                            <username>${NEXUS_USERNAME}</username>
+                            <password>${NEXUS_PASSWORD}</password>
+                          </server>
+                          <server>
+                            <id>nexus-snapshots</id>
+                            <username>${NEXUS_USERNAME}</username>
+                            <password>${NEXUS_PASSWORD}</password>
+                          </server>
+                        </servers>
+                      </settings>
+                      EOF
+
+                      # Generate dynamic version with timestamp and build number
+                      TIMESTAMP=$(date +%Y%m%d%H%M%S)
+                      BUILD_NUMBER=<+pipeline.sequenceId>
+                      DYNAMIC_VERSION="1.0.0-${TIMESTAMP}-${BUILD_NUMBER}"
+                      echo "Generated dynamic version: ${DYNAMIC_VERSION}"
+
+                      # Update version in pom.xml
+                      mvn versions:set -DnewVersion=${DYNAMIC_VERSION} -DgenerateBackupPoms=false
+
+                      # Run maven clean deploy which will automatically upload to Nexus
+                      mvn clean test deploy
+
+                      # Export the dynamic version as an output variable
+                      export MAVEN_VERSION=${DYNAMIC_VERSION}
+
+                      # Export the artifact path as an output variable
+                      ARTIFACT_PATH=$(find ./target -name "*.jar" -o -name "*.war" | head -1)
+                      echo "Found artifact at: ${ARTIFACT_PATH}"
+                      export ARTIFACT_PATH=${ARTIFACT_PATH}
+                    envVariables:
+                      NEXUS_USERNAME: <+pipeline.variables.nexus_username>
+                      NEXUS_PASSWORD: <+secrets.getValue("nexus_password")>
+                    outputVariables:
+                      - name: MAVEN_VERSION
+                      - name: ARTIFACT_PATH
+                  timeout: 10m
+            rollbackSteps: []
+        delegateSelectors:
+          - docker-delegate
+    - stage:
+        name: Scan
+        identifier: Scan
+        description: ""
+        type: CI
+        delegateSelectors:
+          - docker-delegate
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          sharedPaths:
+            - /shared/scan_results
+          execution:
+            steps:
+              - parallel:
+                  - step:
+                      type: Semgrep
+                      name: Semgrep_scan
+                      identifier: Semgrep_scan
+                      spec:
+                        mode: orchestration
+                        config: default
+                        target:
+                          type: repository
+                          workspace: .
+                          detection: auto
+                        advanced:
+                          log:
+                            level: info
+                          fail_on_severity: critical
+                        settings:
+                          report:
+                            enabled: true
+                            format: json
+                            path: semgrep-report.sarif
+                      failureStrategies:
+                        - onFailure:
+                            errors:
+                              - AllErrors
+                            action:
+                              type: MarkAsFailure
+                      timeout: 10m
+                  - step:
+                      type: Bandit
+                      name: Bandit_security_scan
+                      identifier: Bandit_security_scan
+                      spec:
+                        mode: orchestration
+                        config: default
+                        target:
+                          type: repository
+                          workspace: .
+                          detection: auto
+                        advanced:
+                          log:
+                            level: info
+                          fail_on_severity: high
+                        settings:
+                          report:
+                            enabled: true
+                            format: json
+                            path: bandit-report.json
+                      failureStrategies:
+                        - onFailure:
+                            errors:
+                              - AllErrors
+                            action:
+                              type: MarkAsFailure
+                      timeout: 10m
+              - step:
+                  type: Run
+                  identifier: Scan_Email_notification
+                  name: Notify on Scan Failure
+                  when:
+                    stageStatus: Failure
+                    condition: "true"
+                  spec:
+                    shell: Sh
+                    command: Scan failed
+    - stage:
+        name: Secret
+        identifier: Secret
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: false
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Gitleaks
+                  name: Gitleaks_scan
+                  identifier: Gitleaks_scan
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      type: repository
+                      workspace: .
+                      detection: manual
+                      name: maven-barista
+                      variant: master
+                    advanced:
+                      log:
+                        level: info
+                      fail_on_severity: high
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: ManualIntervention
+                          spec:
+                            timeout: 1d
+                            onTimeout:
+                              action:
+                                type: MarkAsFailure
+        delegateSelectors:
+          - docker-delegate
+    - stage:
+        name: Build_image
+        identifier: Build_image
+        description: Docker image build and push
+        type: CI
+        delegateSelectors:
+          - docker-delegate
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec:
+              harnessImageConnectorRef: dockerhub
+          execution:
+            steps:
+              - step:
+                  type: BuildAndPushDockerRegistry
+                  name: BuildAndPushDockerRegistry
+                  identifier: BuildAndPushDockerRegistry_1
+                  spec:
+                    connectorRef: dockerhub
+                    repo: sankaranarayananmurali/maven-v1
+                    tags:
+                      - <+pipeline.sequenceId>
+                    dockerfile: Dockerfile
+                    context: .
+                    caching: true
+                    resources:
+                      limits:
+                        memory: 2Gi
+                        cpu: 1
+                      requests:
+                        memory: 1Gi
+                        cpu: 0.5
+                  timeout: 10m
+            rollbackSteps: []
+    - stage:
+        name: Supply-chain-Analysis
+        identifier: SupplychainAnalysis
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: false
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: AquaTrivy
+                  name: AquaTrivy_scan
+                  identifier: AquaTrivy_scan
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      type: container
+                      detection: auto
+                    advanced:
+                      log:
+                        level: info
+                      fail_on_severity: critical
+                    privileged: true
+                    image:
+                      type: docker_v2
+                      tag: <+pipeline.sequenceId>
+                      name: sankaranarayananmurali/maven-v1
+                      domain: docker.io
+                  timeout: 10m
+            rollbackSteps: []
+        delegateSelectors:
+          - docker-delegate
+    - stage:
+        name: Email-security-status
+        identifier: Emailsecuritystatus
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: Email
+                  name: vulnerability_report_notification
+                  identifier: Email_1
+                  spec:
+                    to: sankaranarayanan.m@xenovex.com
+                    cc: ""
+                    subject: Security Report
+                    body: |-
+                      <!DOCTYPE html> 
+                      <html> 
+                        <body> 
+                          <p>Hi Team,</p>
+                          <b></b> 
+                          <p>The vulnerability scan has completed.</p> 
+                          <b></b>
+                          <p>View the report here: <a href="<+pipeline.executionUrl>">Security Report</a></p> 
+                          <b></b>
+                          <p>Pipeline: <+pipeline.name></p> 
+                          <b></b>
+                          <p>Execution: <a href="<+pipeline.executionUrl>">View Execution</a></p> 
+                          </body> 
+                          </html>
+                    toUserGroups:
+                      - account._account_all_users
+                  timeout: 10m
+            rollbackSteps: []
+        tags: {}
+    - stage:
+        name: Build Approval
+        identifier: Build_Approval
+        description: Approval stage for Docker image
+        type: Approval
+        delegateSelectors:
+          - docker-delegate
+        spec:
+          platform:
+            os: Linux
+            arch: Amd64
+          execution:
+            steps:
+              - step:
+                  type: HarnessApproval
+                  name: Docker Image Approval
+                  identifier: Docker_image_Approval
+                  timeout: 1d
+                  spec:
+                    approvalMessage: |-
+                      Please review the following information
+                      and approve the pipeline progression
+                    includePipelineExecutionHistory: true
+                    approvers:
+                      minimumCount: 1
+                      disallowPipelineExecutor: false
+                      userGroups:
+                        - account._account_all_users
+                    isAutoRejectEnabled: false
+              - step:
+                  type: Email
+                  name: Email Notification regarding build Approval
+                  identifier: Email_Notification_regarding_build_Approval
+                  spec:
+                    to: sankaranarayan.m@xenovex.com
+                    cc: ""
+                    subject: "Build Approval "
+                    body: "Build approved! "
+                    toUserGroups:
+                      - account._account_all_users
+                    delegateSelectors:
+                      - docker-delegate
+                  timeout: 10m
+            rollbackSteps: []
+        tags: {}
+  description: This pipeline was updated by Harness AI on 2025-12-15 06:49:57 UTC by sankaranarayanan.m.
