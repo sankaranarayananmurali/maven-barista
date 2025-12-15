@@ -265,6 +265,7 @@ pipeline:
                   name: Notify on Scan Failure
                   when:
                     stageStatus: Failure
+                    condition: "true"
                   spec:
                     shell: Sh
                     command: Scan failed
