@@ -270,124 +270,6 @@ pipeline:
                     shell: Sh
                     command: Scan failed
     - stage:
-        name: SCA
-        identifier: SCA
-        type: CI
-        delegateSelectors:
-          - docker-delegate
-        spec:
-          cloneCodebase: true
-          platform:
-            os: Linux
-            arch: Amd64
-          runtime:
-            type: Docker
-            spec: {}
-          execution:
-            steps:
-              - step:
-                  type: Run
-                  name: Network Connectivity Check
-                  identifier: network_connectivity_check
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: curlimages/curl:latest
-                    shell: Sh
-                    command: |
-                      echo "Running basic network connectivity tests..."
-
-                      echo "1. Checking internet access..."
-                      curl -s -o /dev/null -w "Google status: %{http_code}\n" https://www.google.com
-
-                      echo "2. Checking DNS resolution..."
-                      nslookup ossindex.sonatype.org || (echo "DNS failed"; exit 1)
-
-                      echo "3. Checking connectivity to OSS Index..."
-                      STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://ossindex.sonatype.org)
-                      echo "OSS Index status: $STATUS"
-
-                      if [ "$STATUS" -eq 200 ]; then
-                          export CONNECTIVITY_STATUS="ok"
-                          echo "Connectivity: OK"
-                      else
-                          export CONNECTIVITY_STATUS="fail"
-                          echo "Connectivity: FAIL"
-                      fi
-                    outputVariables:
-                      - name: CONNECTIVITY_STATUS
-                    imagePullPolicy: Always
-                  timeout: 2m
-              - step:
-                  type: Run
-                  name: Check Package Files
-                  identifier: check_package_files
-                  spec:
-                    connectorRef: account.harnessImage
-                    image: alpine
-                    shell: Sh
-                    command: |-
-                      echo "Checking for common package manifest files..."
-
-                      # Check for common package manifest files
-                      if find . -name "package.json" -o -name "pom.xml" -o -name "requirements.txt" -o -name "go.mod" -o -name "Cargo.toml" -o -name "composer.json" -o -name "Gemfile.lock" -o -name "build.gradle" -o -name "package-lock.json" -o -name "yarn.lock" -o -name "Pipfile.lock" -o -name "poetry.lock" -o -name "go.sum" -o -name "Cargo.lock" -o -name "composer.lock" | grep -q .; then
-                        echo "Package files found - OSV scanner will run"
-                        export HAS_PACKAGES="true"
-                      else
-                        echo "No package files found - OSV scanner will be skipped"
-                        export HAS_PACKAGES="false"
-                      fi
-                    outputVariables:
-                      - name: HAS_PACKAGES
-                        type: String
-                        value: HAS_PACKAGES
-                  timeout: 10m
-              - step:
-                  type: Owasp
-                  name: Owasp_scan
-                  identifier: Owasp_scan
-                  spec:
-                    mode: orchestration
-                    config: default
-                    target:
-                      type: repository
-                      workspace: .
-                      detection: auto
-                    tool:
-                      type: owasp
-                    settings:
-                      tool_args: "--disableOssIndex --enableRetired"
-                    advanced:
-                      log:
-                        level: info
-                      fail_on_severity: high
-                    args:
-                      cli: |
-                        --enableExperimental
-                        --format JSON
-                        --scan .
-                        --out /tmp/output.json
-                        --connectionTimeout 60000
-                        --readTimeout 300000
-                resources:
-                  limits:
-                    memory: 4Gi
-                    cpu: "2.0"
-                  requests:
-                    memory: 2Gi
-                    cpu: "1.0"
-                envVariables:
-                  JAVA_OPTS: "-Xmx3g"
-                failureStrategies:
-                  - onFailure:
-                      errors:
-                        - AllErrors
-                      type: Retry
-                      spec:
-                        retryCount: 2
-                        retryIntervals:
-                          - 30s
-                      timeout: 10m
-    - stage:
         name: Secret
         identifier: Secret
         description: ""
@@ -545,13 +427,14 @@ pipeline:
                       Hi Team,
                               
                               The vulnerability scan has completed. 
-                              View the report here: <+steps.generate_link.output.outputVariables.REPORT_LINK>
+                              View the report here: <+pipeline.executionUrl>
                               
                               Pipeline: <+pipeline.name>
                               Execution: <+pipeline.executionUrl>
                     toUserGroups:
                       - account._account_all_users
                   timeout: 10m
+            rollbackSteps: []
         tags: {}
     - stage:
         name: Build Approval
@@ -598,4 +481,4 @@ pipeline:
                   timeout: 10m
             rollbackSteps: []
         tags: {}
-  description: This pipeline was updated by Harness AI on 2025-12-15 06:37:28 UTC by sankaranarayanan.m.
+  description: This pipeline was updated by Harness AI on 2025-12-15 06:49:57 UTC by sankaranarayanan.m.
