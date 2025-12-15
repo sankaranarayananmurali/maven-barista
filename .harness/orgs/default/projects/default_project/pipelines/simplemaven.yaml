@@ -524,6 +524,34 @@ pipeline:
         delegateSelectors:
           - docker-delegate
     - stage:
+        name: Email-security-status
+        identifier: Emailsecuritystatus
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: Email
+                  name: Email_1
+                  identifier: Email_1
+                  spec:
+                    to: sankaranarayanan.m@xenovex.com
+                    cc: ""
+                    subject: Security Report
+                    body: |-
+                      Hi Team,
+                              
+                              The vulnerability scan has completed. 
+                              View the report here: <+steps.generate_link.output.outputVariables.REPORT_LINK>
+                              
+                              Pipeline: <+pipeline.name>
+                              Execution: <+pipeline.executionUrl>
+                    toUserGroups:
+                      - account._account_all_users
+                  timeout: 10m
+        tags: {}
+    - stage:
         name: Build Approval
         identifier: Build_Approval
         description: Approval stage for Docker image
