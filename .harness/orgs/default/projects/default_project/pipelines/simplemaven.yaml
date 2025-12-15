@@ -533,7 +533,7 @@ pipeline:
             steps:
               - step:
                   type: Email
-                  name: Email_1
+                  name: vulnerability_report_notification
                   identifier: Email_1
                   spec:
                     to: sankaranarayanan.m@xenovex.com
