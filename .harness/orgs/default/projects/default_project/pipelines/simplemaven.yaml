@@ -438,39 +438,6 @@ pipeline:
         delegateSelectors:
           - docker-delegate
     - stage:
-        name: Supply-chain-Analysis
-        identifier: SupplychainAnalysis
-        description: ""
-        type: CI
-        spec:
-          cloneCodebase: false
-          caching:
-            enabled: true
-            override: true
-          buildIntelligence:
-            enabled: true
-          platform:
-            os: Linux
-            arch: Amd64
-          runtime:
-            type: Docker
-            spec: {}
-          execution:
-            steps:
-              - step:
-                  type: SscaCompliance
-                  name: SCS Compliance
-                  identifier: SCS_Compliance
-                  spec:
-                    source:
-                      type: github
-                      spec:
-                        connectorRef: mavengithubconnector
-                        repoName: maven/barista
-                        scan_org: true
-        delegateSelectors:
-          - docker-delegate
-    - stage:
         name: Build_image
         identifier: Build_image
         description: Docker image build and push
@@ -514,6 +481,48 @@ pipeline:
                         cpu: 0.5
                   timeout: 10m
             rollbackSteps: []
+    - stage:
+        name: Supply-chain-Analysis
+        identifier: SupplychainAnalysis
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: false
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: AquaTrivy
+                  name: AquaTrivy_scan
+                  identifier: AquaTrivy_scan
+                  spec:
+                    mode: orchestration
+                    config: default
+                    target:
+                      type: container
+                      detection: auto
+                    advanced:
+                      log:
+                        level: info
+                      fail_on_severity: critical
+                    privileged: true
+                    image:
+                      type: docker_v2
+                      tag: "285"
+                      name: sankaranarayananmurali/maven-v1
+                      domain: docker.io
+        delegateSelectors:
+          - docker-delegate
     - stage:
         name: Build Approval
         identifier: Build_Approval
