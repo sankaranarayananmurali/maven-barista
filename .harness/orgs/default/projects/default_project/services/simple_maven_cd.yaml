@@ -3,3 +3,6 @@ service:
   identifier: simple_maven_cd
   orgIdentifier: default
   projectIdentifier: default_project
+  serviceDefinition:
+    spec: {}
+    type: Kubernetes
