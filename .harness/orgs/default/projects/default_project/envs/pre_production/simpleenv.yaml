@@ -1,0 +1,6 @@
+environment:
+  name: simple-env
+  identifier: simpleenv
+  orgIdentifier: default
+  projectIdentifier: default_project
+  type: PreProduction
