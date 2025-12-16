@@ -4,5 +4,21 @@ service:
   orgIdentifier: default
   projectIdentifier: default_project
   serviceDefinition:
-    spec: {}
+    spec:
+      manifests:
+        - manifest:
+            identifier: simplepoc
+            type: K8sManifest
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: mavengithubconnector
+                  gitFetchType: Branch
+                  paths:
+                    - .harness/orgs/default/projects/default_project/services
+                  branch: master
+              skipResourceVersioning: false
+              enableDeclarativeRollback: false
+              optionalValuesYaml: false
     type: Kubernetes
