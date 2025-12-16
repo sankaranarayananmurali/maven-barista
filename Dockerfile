@@ -1,22 +1,19 @@
-# Build stage uses maven to pack the web application
+# ---------- Build stage ----------
 FROM maven:3.9.9-eclipse-temurin-21 AS build
-
 WORKDIR /app
-
-COPY . /app
-
+COPY . .
 RUN mvn clean package -DskipTests
 
-# final stage uses to host the web application using tomcat 10 with jdk 17
-
+# ---------- Runtime stage ----------
 FROM tomcat:10-jdk17
 
-# removing the default webpage 
-RUN  rm -rf /usr/local/tomcat/webapps/*
+# Remove default apps
+RUN rm -rf /usr/local/tomcat/webapps/*
 
-#saving the our app.war as Root.war to see the rootpath 
-COPY --from=Build /app/target/*.war /usr/local/tomcat/webapps/Root.war
+# Deploy WAR as ROOT application
+COPY --from=build /app/target/*.war /usr/local/tomcat/webapps/ROOT.war
 
-EXPOSE 8089
+# Tomcat listens on 8080
+EXPOSE 8080
 
-CMD [ "catalina.sh", "run"]
+CMD ["catalina.sh", "run"]
