@@ -1,8 +1,0 @@
-service:
-  name: simple_maven_cd
-  identifier: simple_maven_cd
-  orgIdentifier: default
-  projectIdentifier: default_project
-  serviceDefinition:
-    spec: {}
-    type: Kubernetes
