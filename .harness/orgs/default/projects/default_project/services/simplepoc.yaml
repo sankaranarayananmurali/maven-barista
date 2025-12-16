@@ -1,0 +1,5 @@
+service:
+  name: simplepoc
+  identifier: simplepoc
+  orgIdentifier: default
+  projectIdentifier: default_project
