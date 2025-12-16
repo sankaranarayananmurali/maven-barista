@@ -27,7 +27,7 @@ service:
           sources:
             - spec:
                 connectorRef: dockerhub
-                imagePath: librarytomcat
+                imagePath: sankaranarayananmurali/maven-v1
                 tag: <+input>
                 digest: ""
               identifier: dockerhubpoc
