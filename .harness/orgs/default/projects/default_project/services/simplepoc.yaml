@@ -21,4 +21,15 @@ service:
               skipResourceVersioning: false
               enableDeclarativeRollback: false
               optionalValuesYaml: false
+      artifacts:
+        primary:
+          primaryArtifactRef: <+input>
+          sources:
+            - spec:
+                connectorRef: dockerhub
+                imagePath: librarytomcat
+                tag: <+input>
+                digest: ""
+              identifier: dockerhubpoc
+              type: DockerRegistry
     type: Kubernetes
