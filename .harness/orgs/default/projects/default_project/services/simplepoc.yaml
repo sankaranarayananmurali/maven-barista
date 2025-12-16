@@ -7,20 +7,17 @@ service:
     spec:
       manifests:
         - manifest:
-            identifier: simplepoc
+            identifier: simplemaven
             type: K8sManifest
             spec:
               store:
-                type: Github
+                type: Harness
                 spec:
-                  connectorRef: mavengithubconnector
-                  gitFetchType: Branch
-                  paths:
-                    - .harness/orgs/default/projects/default_project/services
-                  branch: master
+                  files:
+                    - /simple-maven-k8s
+              optionalValuesYaml: false
               skipResourceVersioning: false
               enableDeclarativeRollback: false
-              optionalValuesYaml: false
       artifacts:
         primary:
           primaryArtifactRef: <+input>
