@@ -1,11 +1,11 @@
 # ---------- Build stage ----------
-FROM maven:3.9.9-eclipse-temurin-21 AS build
+FROM maven:3.9.9 AS build
 WORKDIR /app
 COPY . .
 RUN mvn clean package -DskipTests
 
 # ---------- Runtime stage ----------
-FROM tomcat:10-jdk21
+FROM tomcat:9-jdk17
 
 # Remove default apps
 RUN rm -rf /usr/local/tomcat/webapps/*
