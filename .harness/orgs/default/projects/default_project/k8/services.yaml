@@ -3,3 +3,17 @@ service:
   identifier: poc
   orgIdentifier: default
   projectIdentifier: default_project
+  serviceDefinition:
+    spec:
+      artifacts:
+        primary:
+          primaryArtifactRef: dockerhub
+          sources:
+            - spec:
+                connectorRef: dockerhub
+                imagePath: sankaranarayananmurali/maven-v1
+                tag: <+input>
+                digest: ""
+              identifier: dockerhub
+              type: DockerRegistry
+    type: Kubernetes
