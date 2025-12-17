@@ -16,4 +16,20 @@ service:
                 digest: ""
               identifier: dockerhub
               type: DockerRegistry
+      manifests:
+        - manifest:
+            identifier: service
+            type: K8sManifest
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: mavengithubconnector
+                  gitFetchType: Branch
+                  paths:
+                    - maven-barista/k8s /service.yaml
+                  branch: master
+              skipResourceVersioning: false
+              enableDeclarativeRollback: false
+              optionalValuesYaml: false
     type: Kubernetes
