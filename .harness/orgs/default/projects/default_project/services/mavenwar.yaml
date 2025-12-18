@@ -16,7 +16,7 @@ service:
                   connectorRef: mavengithubconnector
                   gitFetchType: Branch
                   paths:
-                    - k8 /services.yaml
+                    - /.harness/orgs/default/projects/default_project/k8 /services.yaml
                   branch: master
               skipResourceVersioning: false
               enableDeclarativeRollback: false
