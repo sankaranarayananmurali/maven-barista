@@ -2,18 +2,57 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: maven-barista
+  labels:
+    app: maven-barista
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: maven-barista
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  progressDeadlineSeconds: 600
   template:
     metadata:
       labels:
         app: maven-barista
     spec:
       containers:
-        - name: maven-barista
-          image: <+artifact.image>
-          ports:
-            - containerPort: 8080
+      - name: maven-barista
+        image: sankaranarayananmurali/maven-v1:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms128m -Xmx256m"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+      restartPolicy: Always
