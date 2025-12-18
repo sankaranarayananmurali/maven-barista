@@ -7,20 +7,17 @@ service:
     spec:
       manifests:
         - manifest:
-            identifier: war1
+            identifier: war
             type: K8sManifest
             spec:
               store:
-                type: Github
+                type: Harness
                 spec:
-                  connectorRef: mavengithubconnector
-                  gitFetchType: Branch
-                  paths:
-                    - /.harness/orgs/default/projects/default_project/k8 /services.yaml
-                  branch: master
+                  files:
+                    - /deployment.yaml
+              optionalValuesYaml: false
               skipResourceVersioning: false
               enableDeclarativeRollback: false
-              optionalValuesYaml: false
       artifacts:
         primary:
           primaryArtifactRef: dockerhub
