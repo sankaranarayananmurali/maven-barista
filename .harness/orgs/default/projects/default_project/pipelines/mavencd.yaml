@@ -13,18 +13,7 @@ pipeline:
         spec:
           deploymentType: Kubernetes
           service:
-            serviceRef: mavenwar
-            serviceInputs:
-              serviceDefinition:
-                type: Kubernetes
-                spec:
-                  artifacts:
-                    primary:
-                      sources:
-                        - identifier: dockerhub
-                          type: DockerRegistry
-                          spec:
-                            tag: <+input>
+            serviceRef: maven_barista
           environment:
             environmentRef: war
             deployToAll: false
