@@ -1,0 +1,13 @@
+infrastructureDefinition:
+  name: war
+  identifier: war
+  orgIdentifier: default
+  projectIdentifier: default_project
+  environmentRef: war
+  deploymentType: Kubernetes
+  type: KubernetesDirect
+  spec:
+    connectorRef: harnessk8sconnector
+    namespace: default
+    releaseName: release-<+INFRA_KEY_SHORT_ID>
+  allowSimultaneousDeployments: false
