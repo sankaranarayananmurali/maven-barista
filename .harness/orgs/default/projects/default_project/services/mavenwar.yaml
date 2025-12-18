@@ -3,3 +3,30 @@ service:
   identifier: mavenwar
   orgIdentifier: default
   projectIdentifier: default_project
+  serviceDefinition:
+    spec:
+      manifests:
+        - manifest:
+            identifier: war
+            type: K8sManifest
+            spec:
+              store:
+                type: Harness
+                spec:
+                  files:
+                    - /deployment.yaml
+              optionalValuesYaml: false
+              skipResourceVersioning: false
+              enableDeclarativeRollback: false
+      artifacts:
+        primary:
+          primaryArtifactRef: dockerhub
+          sources:
+            - spec:
+                connectorRef: dockerhub
+                imagePath: sankaranarayananmurali/maven-v1
+                tag: <+input>
+                digest: ""
+              identifier: dockerhub
+              type: DockerRegistry
+    type: Kubernetes
